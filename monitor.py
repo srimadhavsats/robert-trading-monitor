@@ -3,43 +3,57 @@ import asyncio
 import csv
 from datetime import datetime
 
-# 1. Setup the Exchange (Binance Public - No API keys needed for price monitoring)
+# 1. Configuration
 exchange = ccxt.binance()
-symbol = 'BTC/USDT'
+symbols = ['BTC/USDT', 'ETH/USDT']
 log_file = 'trading_records.csv'
+last_prices = {symbol: None for symbol in symbols}
 
-async def monitor_and_log():
-    print(f"--- Robert Trading Assistant: Monitoring {symbol} ---")
-    print(f"Logging data to: {log_file}")
+async def fetch_price(symbol):
+    ticker = await exchange.fetch_ticker(symbol)
+    return ticker['last']
 
-    # Create the CSV file and write the header if it doesn't exist
+async def monitor_desk():
+    print(f"--- Robert Trading Desk: Live Execution Monitor ---")
+    print(f"Monitoring: {', '.join(symbols)} | Logging to: {log_file}\n")
+
     with open(log_file, mode='a', newline='') as file:
         writer = csv.writer(file)
-        # Check if file is new to write header
         if file.tell() == 0:
-            writer.writerow(['Timestamp', 'Asset', 'Price', 'Status'])
+            writer.writerow(['Timestamp', 'Asset', 'Price', 'Change %', 'Status'])
 
         try:
             while True:
-                # A. The "Waiter" Request (Non-blocking)
-                ticker = await exchange.fetch_ticker(symbol)
-                price = ticker['last']
-                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                for symbol in symbols:
+                    current_price = await fetch_price(symbol)
+                    timestamp = datetime.now().strftime('%H:%M:%S')
+                    status = 'STABLE'
+                    change_pct = 0.0
 
-                # B. Terminal Output (Visual Trend Monitoring)
-                print(f"[{timestamp}] {symbol}: ${price:,.2f}")
+                    # Calculate Volatility Logic
+                    if last_prices[symbol] is not None:
+                        change_pct = ((current_price - last_prices[symbol]) / last_prices[symbol]) * 100
+                        
+                        # Alert if movement is more than 0.01% (#Adjust accordingly)
+                        if abs(change_pct) > 0.01:
+                            status = '!! VOLATILE !!'
 
-                # C. The "Records" Logic (Excel-ready Logging)
-                writer.writerow([timestamp, symbol, price, 'MONITORING'])
-                file.flush() # Forces the data to save immediately
+                    # Terminal Output
+                    alert_color = "\033[91m" if status == '!! VOLATILE !!' else "\033[92m"
+                    reset_color = "\033[0m"
+                    print(f"[{timestamp}] {symbol}: ${current_price:,.2f} | {alert_color}{change_pct:+.4f}% [{status}]{reset_color}")
 
-                # Wait 2 seconds before the next update
-                await asyncio.sleep(2)
+                    # Log to CSV
+                    writer.writerow([timestamp, symbol, current_price, f"{change_pct:.4f}%", status])
+                    last_prices[symbol] = current_price
+                
+                file.flush()
+                await asyncio.sleep(2) # Refresh every 2 seconds
 
         except Exception as e:
-            print(f"Connection Error: {e}")
+            print(f"System Error: {e}")
         finally:
             await exchange.close()
 
 if __name__ == "__main__":
-    asyncio.run(monitor_and_log())
+    asyncio.run(monitor_desk())
