@@ -1,7 +1,8 @@
 import ccxt.async_support as ccxt
 import asyncio
 import csv
-import os  # Added to clear the terminal
+import os
+import sys
 from datetime import datetime
 
 # 1. Configuration
@@ -15,7 +16,9 @@ async def fetch_price(symbol):
     return ticker['last']
 
 async def monitor_desk():
-    # Write header only if file is brand new
+    # Initial setup
+    os.system('clear')
+    
     if not os.path.exists(log_file) or os.stat(log_file).st_size == 0:
         with open(log_file, mode='a', newline='') as file:
             writer = csv.writer(file)
@@ -23,13 +26,17 @@ async def monitor_desk():
 
     try:
         while True:
-            # --- DASHBOARD HEADER ---
-            os.system('clear') # Clears the terminal screen
-            print("="*60)
-            print(f" ROBERT TRADING DESK | LIVE MONITOR | {datetime.now().strftime('%Y-%m-%d')}")
-            print("="*60)
-            print(f"{'ASSET':<12} | {'PRICE':<12} | {'CHANGE':<10} | {'STATUS'}")
-            print("-"*60)
+            # Move cursor to top-left
+            sys.stdout.write("\033[H")
+            
+            # \033[K is the magic "Clear to end of line" command
+            clear_line = "\033[K"
+
+            print(f"{'='*60}{clear_line}")
+            print(f" ROBERT TRADING DESK | LIVE MONITOR | {datetime.now().strftime('%Y-%m-%d')}{clear_line}")
+            print(f"{'='*60}{clear_line}")
+            print(f"{'ASSET':<12} | {'PRICE':<12} | {'CHANGE':<10} | {'STATUS'}{clear_line}")
+            print(f"{'-'*60}{clear_line}")
 
             with open(log_file, mode='a', newline='') as file:
                 writer = csv.writer(file)
@@ -42,24 +49,24 @@ async def monitor_desk():
 
                     if last_prices[symbol] is not None:
                         change_pct = ((current_price - last_prices[symbol]) / last_prices[symbol]) * 100
-                        if abs(change_pct) > 0.005: # Sensitivity set to 0.005% for testing
+                        if abs(change_pct) > 0.005: 
                             status = '!! VOLATILE !!'
 
-                    # Formatting for the Dashboard
                     color = "\033[91m" if status == '!! VOLATILE !!' else "\033[92m"
                     reset = "\033[0m"
                     
-                    # Print Dashboard Row
-                    print(f"{symbol:<12} | ${current_price:<11,.2f} | {color}{change_pct:>+8.4f}%{reset} | {color}{status}{reset}")
+                    # Apply clear_line at the very end of the string, after the reset color
+                    print(f"{symbol:<12} | ${current_price:<11,.2f} | {color}{change_pct:>+8.4f}%{reset} | {color}{status}{reset}{clear_line}")
 
-                    # Log to CSV
                     writer.writerow([timestamp, symbol, current_price, f"{change_pct:.4f}%", status])
                     last_prices[symbol] = current_price
                 
                 file.flush()
             
-            print("="*60)
-            print(f" Last Update: {datetime.now().strftime('%H:%M:%S')} | Logging Active...")
+            print(f"{'='*60}{clear_line}")
+            print(f" Last Update: {datetime.now().strftime('%H:%M:%S')} | Logging Active...{clear_line}")
+            
+            sys.stdout.flush()
             await asyncio.sleep(2)
 
     except Exception as e:
