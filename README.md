@@ -27,7 +27,6 @@ pip install ccxt
 2. Launch your terminal.
 3. Run the monitor:
    ```
-   bash
    python3 monitor.py
    ```
 
