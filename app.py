@@ -2,49 +2,66 @@ import streamlit as st
 import ccxt
 import pandas as pd
 import time
+from datetime import datetime
 
-# Page Configuration (The "Brilliant" Look)
+# Page Configuration
 st.set_page_config(page_title="Sats Trading Monitor", layout="wide")
 
-st.title("🛡️ **Sats Trading Monitor v1.4** | Live Execution Monitor")
-st.write("Real-time execution monitoring and volatility tracking.")
+# Static Header
+st.title("🛡️ Sats Trading Monitor | Market Sentinel")
+st.write(f"Live Execution Monitor | System Status: ONLINE")
+st.markdown("---")
 
 # 1. Initialize Exchange (Using CCXT Sync for the Dashboard)
 exchange = ccxt.binance()
 symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
 
-# Create empty placeholders for the "Fast" UI updates
-metrics_col = st.columns(len(symbols))
-chart_placeholder = st.empty()
-table_placeholder = st.empty()
+# The Master Placeholder to keep the UI stationary
+dashboard_frame = st.empty()
 
-# Initialize data history
+# Initialize history in session state
 if 'history' not in st.session_state:
     st.session_state.history = pd.DataFrame(columns=['Timestamp', 'Asset', 'Price'])
 
-while True:
-    current_data = []
-    
-    for i, symbol in enumerate(symbols):
-        ticker = exchange.fetch_ticker(symbol)
-        price = ticker['last']
+try:
+    while True:
+        current_data = []
         
-        # Update Big Top Metrics
-        metrics_col[i].metric(label=symbol, value=f"${price:,.2f}")
-        
-        current_data.append({
-            'Timestamp': pd.Timestamp.now(),
-            'Asset': symbol,
-            'Price': price
-        })
+        with dashboard_frame.container():
+            # Create columns for the Top Metrics
+            cols = st.columns(len(symbols))
+            
+            for i, symbol in enumerate(symbols):
+                ticker = exchange.fetch_ticker(symbol)
+                price = ticker['last']
+                
+                # Big Metrics at the top
+                cols[i].metric(label=symbol, value=f"${price:,.2f}")
+                
+                current_data.append({
+                    'Timestamp': datetime.now().strftime('%H:%M:%S'),
+                    'Asset': symbol,
+                    'Price': f"${price:,.2f}"
+                })
 
-    # Update History Table
-    new_df = pd.DataFrame(current_data)
-    st.session_state.history = pd.concat([new_df, st.session_state.history]).head(20)
-    
-    # Render the "Fast" UI Components
-    with table_placeholder.container():
-        st.subheader("Live Audit Log")
-        st.table(st.session_state.history)
+            st.markdown("### 📊 Live Market Feed")
+            
+            # Update history logic
+            new_rows = pd.DataFrame(current_data)
+            
+            # ignore_index=True stops the 0,1,2 cycling behavior
+            st.session_state.history = pd.concat([new_rows, st.session_state.history], ignore_index=True).head(15)
+            
+            # UPDATED: Using width='stretch' to match the latest Streamlit API
+            st.dataframe(
+                st.session_state.history, 
+                hide_index=True, 
+                width='stretch'
+            )
+            
+            st.caption(f"Last UI Sync: {datetime.now().strftime('%H:%M:%S')} | Environment: Arch Linux")
 
-    time.sleep(2) # Refresh rate
+        time.sleep(2)
+
+except Exception as e:
+    st.error(f"Dashboard Halted: {e}")
