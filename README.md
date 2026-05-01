@@ -1,42 +1,55 @@
+# 🛡️ Sats Trading Monitor v2.3 | Market Sentinel
 
-# Sats Trading Monitor v1.4 | Live Execution Monitor
+An institutional-grade cryptocurrency market monitor and real-time dashboard. This project provides a "single-pane-of-glass" view for high-speed trading environments, featuring a flicker-free web interface and automated environment management.
 
-An institutional-grade cryptocurrency market monitor designed for high-speed trading environments. This tool provides real-time asset tracking across multiple symbols with integrated volatility alerting and automated CSV logging for audit compliance.
-
-## 🚀 Features
-- **Asynchronous Execution:** Built with `asyncio` for non-blocking, sub-second market data retrieval[cite: 1].
-- **Unified API Integration:** Utilizes the CCXT library to connect seamlessly with global exchanges like Binance[cite: 1].
-- **Proactive Volatility Alerts:** Real-time calculation of price change percentages with visual "High Volatility" triggers.
-- **Flicker-Free Dashboard:** Custom UI implemented with ANSI escape sequences for a stationary, professional terminal experience.
-- **Automated Audit Trail:** Real-time logging of every market tick to an Excel-compatible CSV format for accurate record-keeping.
+## 🚀 Key Features
+*   **Real-Time Web Dashboard:** A Streamlit-powered frontend for sub-second visual updates across BTC, ETH, and SOL.
+*   **Fixed-Frame UI Architecture:** Utilizes master placeholders to ensure a stationary, professional dashboard experience without annoying page scrolling.
+*   **Unified API Integration:** Connects to global exchanges via the CCXT library for reliable, real-time price fetching.
+*   **Production-Ready Repository:** Optimized with a comprehensive `.gitignore` and `requirements.txt` for one-command deployment.
+*   **Future-Proof Syntax:** Fully updated for 2026 library standards, utilizing the latest `width='stretch'` parameters for responsive design.
 
 ## 🛠 Tech Stack
-- **Language:** Python 3.10+
-- **Library:** [CCXT (CryptoCurrency eXchange Trading Library)](https://github.com/ccxt/ccxt)[cite: 1]
-- **Concurrency:** Python `asyncio`[cite: 1]
-- **Environment:** GitHub Codespaces / Linux
+*   **Frontend:** Streamlit (v2.x+)
+*   **Backend:** Python 3.12+ & CCXT
+*   **Data Handling:** Pandas for real-time audit logging
+*   **Environment:** Arch Linux / GitHub Codespaces
 
-## 📦 Prerequisites
-Ensure you have Python 3 installed. The following library is required:
-```bash
-pip install ccxt
-```
+## 📦 Quick Start
+To get the Market Sentinel online in a fresh environment, run these commands:
 
-## 🚦 Usage
-1. Clone this repository.
-2. Launch your terminal.
-3. Run the monitor:
-   ```
-   python3 monitor.py
-   ```
+1.  **Clone the Repository:**
+    ```
+    git clone https://github.com/srimadhavsats/sats-trading-monitor.git
+    cd sats-trading-monitor
+    ```
 
-## 📊 Data Structure
-The monitor automatically generates `trading_records.csv` with the following schema:
-| Timestamp | Asset | Price | Change % | Status |
-|-----------|-------|-------|----------|--------|
-| HH:MM:SS  | BTC/USDT| 76,000| +0.02%   | STABLE |
+2.  **Initialize the Environment:**
+    ```
+    python3 -m venv .venv && source .venv/bin/activate
+    ```
+
+3.  **Automated Dependency Installation:**
+    ```
+    pip install -r requirements.txt
+    ```
+
+4.  **Launch the Dashboard:**
+    ```
+    streamlit run app.py
+    ```
+
+## 📊 Repository Structure
+| File | Description |
+|-----------|-------------|
+| `app.py` | Main Streamlit dashboard with "fixed-frame" UI logic. |
+| `monitor.py` | Original CLI-based market monitor with CSV logging. |
+| `requirements.txt` | Automated list of necessary Python libraries. |
+| `.gitignore` | Configured to block environment junk (13,000+ files) and CSVs. |
 
 ## 🛠 Future Roadmap
-- [ ] Integration of Private API keys for real-time order tracking.
-- [ ] Telegram/Discord Webhook integration for remote volatility alerts.
-- [ ] Support for 10+ simultaneous asset "baskets."
+*   [ ] **Volatility Heatmaps:** Visual color triggers for 1% - 5% price swings.
+*   [ ] **Multi-Exchange Aggregation:** Comparison of spreads between Binance and Coinbase.
+*   [ ] **Telegram Webhooks:** Instant alerts sent directly to your mobile device.
+
+
