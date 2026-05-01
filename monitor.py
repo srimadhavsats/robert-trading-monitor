@@ -1,78 +1,90 @@
-import ccxt.async_support as ccxt
-import asyncio
-import csv
-import os
-import sys
+import streamlit as st
+import ccxt
+import pandas as pd
+import time
 from datetime import datetime
+from charts import render_tv_chart 
 
-# 1. Configuration
-exchange = ccxt.binance()
-symbols = ['BTC/USDT', 'ETH/USDT']
-log_file = 'trading_records.csv'
+# --- Application Configuration ---
+st.set_page_config(page_title="Sats Trading Monitor", layout="wide")
+st.title("🛡️ Sats Trading Monitor v1.9")
+
+# --- UI Layout: Charts Section (Static) ---
+symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT']
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.caption("Primary Asset: Bitcoin")
+    render_tv_chart(symbols[0])
+
+with col2:
+    st.caption("Ecosystem Proxy: Ethereum")
+    render_tv_chart(symbols[1])
+
+with col3:
+    st.caption("Performance Proxy: Solana")
+    render_tv_chart(symbols[2])
+
+st.markdown("---")
+
+# --- Backend Engine: Live Data & State Management ---
+exchange = ccxt.binance() 
+
+if 'audit_log' not in st.session_state:
+    st.session_state.audit_log = pd.DataFrame(columns=['Timestamp', 'Asset', 'Price', 'Status'])
+
+metrics_placeholder = st.empty()
+log_placeholder = st.empty()
+
 last_prices = {symbol: None for symbol in symbols}
 
-async def fetch_price(symbol):
-    ticker = await exchange.fetch_ticker(symbol)
-    return ticker['last']
+def calculate_volatility(price, last_price):
+    """Assigns status flags based on price movement."""
+    if last_price is None: return "STABLE"
+    change = ((price - last_price) / last_price) * 100
+    return "!! VOLATILE !!" if abs(change) > 0.01 else "STABLE"
 
-async def monitor_desk():
-    # Initial setup
-    os.system('clear')
+# Core monitoring loop
+while True:
+    ticker_data = []
     
-    if not os.path.exists(log_file) or os.stat(log_file).st_size == 0:
-        with open(log_file, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(['Timestamp', 'Asset', 'Price', 'Change %', 'Status'])
+    for symbol in symbols:
+        ticker = exchange.fetch_ticker(symbol)
+        price = ticker['last']
+        status = calculate_volatility(price, last_prices[symbol])
+        
+        new_entry = {
+            'Timestamp': datetime.now().strftime('%H:%M:%S'),
+            'Asset': symbol,
+            'Price': f"${price:,.2f}",
+            'Status': status
+        }
+        
+        st.session_state.audit_log = pd.concat(
+            [pd.DataFrame([new_entry]), st.session_state.audit_log], 
+            ignore_index=True
+        )
+        ticker_data.append({"symbol": symbol, "price": price, "status": status})
+        last_prices[symbol] = price
 
-    try:
-        while True:
-            # Move cursor to top-left
-            sys.stdout.write("\033[H")
-            
-            # \033[K is the magic "Clear to end of line" command
-            clear_line = "\033[K"
+    # Update dynamic Metrics Grid
+    with metrics_placeholder.container():
+        cols = st.columns(len(symbols))
+        for i, data in enumerate(ticker_data):
+            cols[i].metric(
+                label=data['symbol'], 
+                value=f"${data['price']:,.2f}", 
+                delta=data['status']
+            )
 
-            print(f"{'='*60}{clear_line}")
-            print(f" ROBERT TRADING DESK | LIVE MONITOR | {datetime.now().strftime('%Y-%m-%d')}{clear_line}")
-            print(f"{'='*60}{clear_line}")
-            print(f"{'ASSET':<12} | {'PRICE':<12} | {'CHANGE':<10} | {'STATUS'}{clear_line}")
-            print(f"{'-'*60}{clear_line}")
+    # Update dynamic Audit Log with index suppressed
+    with log_placeholder.container():
+        st.write("### Live Audit Log")
+        st.dataframe(
+            st.session_state.audit_log.head(15), 
+            width="stretch", 
+            hide_index=True
+        )
 
-            with open(log_file, mode='a', newline='') as file:
-                writer = csv.writer(file)
-                
-                for symbol in symbols:
-                    current_price = await fetch_price(symbol)
-                    timestamp = datetime.now().strftime('%H:%M:%S')
-                    status = 'STABLE'
-                    change_pct = 0.0
-
-                    if last_prices[symbol] is not None:
-                        change_pct = ((current_price - last_prices[symbol]) / last_prices[symbol]) * 100
-                        if abs(change_pct) > 0.005: 
-                            status = '!! VOLATILE !!'
-
-                    color = "\033[91m" if status == '!! VOLATILE !!' else "\033[92m"
-                    reset = "\033[0m"
-                    
-                    # Apply clear_line at the very end of the string, after the reset color
-                    print(f"{symbol:<12} | ${current_price:<11,.2f} | {color}{change_pct:>+8.4f}%{reset} | {color}{status}{reset}{clear_line}")
-
-                    writer.writerow([timestamp, symbol, current_price, f"{change_pct:.4f}%", status])
-                    last_prices[symbol] = current_price
-                
-                file.flush()
-            
-            print(f"{'='*60}{clear_line}")
-            print(f" Last Update: {datetime.now().strftime('%H:%M:%S')} | Logging Active...{clear_line}")
-            
-            sys.stdout.flush()
-            await asyncio.sleep(2)
-
-    except Exception as e:
-        print(f"\n[!] System Error: {e}")
-    finally:
-        await exchange.close()
-
-if __name__ == "__main__":
-    asyncio.run(monitor_desk())
+    # Wait for 2 seconds
+    time.sleep(2)
