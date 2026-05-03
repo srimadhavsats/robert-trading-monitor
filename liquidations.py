@@ -70,3 +70,18 @@ class LiquidationEngine:
                 return df[['symbol', 'side', 'price', 'origQty', 'time']].head(5)
             return pd.DataFrame()
         except: return pd.DataFrame()
+
+        def get_cvd_data(self, symbol):
+    try:
+        # Fetch the last 100 trades
+        trades = self.binance.fetch_trades(symbol, limit=100)
+        df = pd.DataFrame(trades)
+        
+        # Binance 'side' tells us who was aggressive
+        # 'buy' = Market Buy, 'sell' = Market Sell
+        df['delta'] = df.apply(lambda x: x['amount'] if x['side'] == 'buy' else -x['amount'], axis=1)
+        
+        # Return the cumulative sum
+        return df['delta'].cumsum().iloc[-1]
+    except:
+        return 0.0
