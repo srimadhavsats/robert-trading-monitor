@@ -3,6 +3,31 @@ import pandas as pd
 import plotly.graph_objects as go
 from charts import render_tv_chart
 
+def detect_divergence(current_price, magnets, cvd_series):
+    """Detects Bullish Absorption or Bearish Fakeouts."""
+    if not cvd_series or len(cvd_series) < 5:
+        return None
+    
+    # Threshold: Price within 0.1% of a magnet
+    threshold = 0.001 
+    cvd_slope = cvd_series[-1] - cvd_series[-5]
+    
+    # 1. Bearish Divergence (Fakeout)
+    # Price is at Upper Magnet but Aggressive Sellers are stepping in
+    upper_mag = magnets['short_risk'][0]
+    if upper_mag > 0 and abs(current_price - upper_mag) / upper_mag < threshold:
+        if cvd_slope < 0:
+            return "⚠️ BEARISH DIVERGENCE: Price at Upper Magnet but CVD dropping. Possible Fakeout."
+
+    # 2. Bullish Divergence (Absorption)
+    # Price is at Lower Magnet but Aggressive Buyers are absorbing
+    lower_mag = magnets['long_risk'][0]
+    if lower_mag > 0 and abs(current_price - lower_mag) / lower_mag < threshold:
+        if cvd_slope > 0:
+            return "🚀 BULLISH DIVERGENCE: Price at Lower Magnet but CVD rising. Possible Absorption."
+            
+    return None
+
 def render_sentinel_dashboard(page_title, engine_type, symbols, market_data, current_rekt, bids, asks, magnets, cvd_series, history_key, audit_key, last_prices):
     st.title(f"🛡️ {page_title}")
 
@@ -13,15 +38,21 @@ def render_sentinel_dashboard(page_title, engine_type, symbols, market_data, cur
 
     st.markdown("---")
 
-    # --- 2. Magnet Alerts ---
+    # --- 2. Divergence & Magnet Alerts ---
+    current_btc_price = market_data[symbols[0]]['price']
+    divergence_msg = detect_divergence(current_btc_price, magnets, cvd_series)
+    
+    if divergence_msg:
+        st.warning(divergence_msg) # High-priority alert
+
     a1, a2 = st.columns(2)
     with a1:
         if magnets['short_risk'][1] > 0:
-            dist = ((magnets['short_risk'][0] - market_data[symbols[0]]['price']) / market_data[symbols[0]]['price']) * 100
+            dist = ((magnets['short_risk'][0] - current_btc_price) / current_btc_price) * 100
             st.error(f"🧲 **{engine_type} Upper Magnet:** ${magnets['short_risk'][0]:,.0f} ({dist:.2f}% away)")
     with a2:
         if magnets['long_risk'][1] > 0:
-            dist = ((market_data[symbols[0]]['price'] - magnets['long_risk'][0]) / market_data[symbols[0]]['price']) * 100
+            dist = ((current_btc_price - magnets['long_risk'][0]) / current_btc_price) * 100
             st.warning(f"🧲 **{engine_type} Lower Magnet:** ${magnets['long_risk'][0]:,.0f} ({dist:.2f}% away)")
 
     # --- 3. Metrics ---
@@ -55,19 +86,9 @@ def render_sentinel_dashboard(page_title, engine_type, symbols, market_data, cur
             fig_cvd.update_xaxes(visible=False)
             st.plotly_chart(fig_cvd, use_container_width=True)
 
-    # --- 5. REKT Feeds ---
-    st.subheader("🔥 Live REKT Feed")
-    if not current_rekt.empty:
-        r_cols = st.columns(3)
-        for idx, row in current_rekt.head(3).iterrows():
-            with r_cols[idx]:
-                emoji = "🟢" if row['side'] == 'SELL' else "🔴"
-                st.info(f"**{emoji} {row['symbol']}**\n\n{row['origQty']:.2f} Liq @ {row['price']:,.2f}")
-    else: st.info("🛡️ Market calm... monitoring live exchange liquidations.")
-    
-    # --- 6. Ledgers & Logs ---
-    st.subheader(f"📜 {engine_type} Historical Ledger")
-    st.dataframe(st.session_state[history_key], width="stretch", hide_index=True)
-
+    # --- 5. Ledgers & Logs ---
     st.subheader("🤖 System Audit Log")
     st.dataframe(st.session_state[audit_key], width="stretch", hide_index=True)
+    
+    st.subheader(f"📜 {engine_type} Historical Ledger")
+    st.dataframe(st.session_state[history_key], width="stretch", hide_index=True)
