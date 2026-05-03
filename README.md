@@ -1,55 +1,59 @@
-# 🛡️ Sats Trading Monitor v2.4 | Command Center
+# 🛡️ Sats Trading Monitor v3.0 | Magnet Sentinel
 
-An institutional-grade cryptocurrency market sentinel and real-time visualization suite developed for high-precision monitoring. This version introduces a **Modular Architecture**, decoupling the high-speed data engine from the financial visualization layer to ensure maximum stability and maintainability.
+An institutional-grade cryptocurrency market sentinel and predictive visualization suite. Developed for high-precision monitoring, this version transitions from reactive charting to a proactive **Divergence Engine**, utilizing **Liquidity Magnets** and **CVD (Cumulative Volume Delta)** to identify market traps in real-time.
 
 ## 🚀 Key Features
-*   **Modular Architecture:** Separated into a core data engine (`monitor.py`) and a visualization library (`charts.py`) for clean, scalable development.
-*   **Simultaneous Multi-Asset Dashboard:** Real-time, side-by-side view of BTC, ETH, and SOL without the need for manual tab switching.
-*   **Integrated Technical Suite:** Automated injection of Moving Averages (EMA/SMA), RSI, and MACD indicators via industry-standard TradingView widgets.
-*   **Persistent Live Audit Ledger:** A session-state persistent log that records every market movement, providing a verifiable "paper trail" for all price actions.
-*   **2026 Standard Compliance:** Fully optimized for late-2026 library syntax, including `width='stretch'` responsive dataframes and secure HTML injection protocols.
-*   **Built on Industry Experience:** Designed by a participant with cryptocurrency market experience dating back to 2012-2013.
+
+### **Architecture & Efficiency**
+*   **Multi-Page Sentinel System:** Dedicated environments for Institutional (CEX) and On-Chain (DEX) liquidity monitoring.
+*   **Shared UI Engine (DRY):** A unified component architecture that ensures visual consistency and high maintainability across all exchange pages.
+*   **Arch Linux Native:** Fully optimized for high-speed performance on **Arch Linux (Xfce)** with minimal system overhead.
+
+### **Market Intelligence**
+*   **Liquidity Magnets:** Real-time detection of high-volume limit order clusters within a **1%** price range to identify potential "snap" points.
+*   **CVD Aggression Tracking:** Integrated volume delta visualization to monitor aggressive market buying vs. selling pressure.
+*   **Divergence Alert System:** Proactive flagging of **Bullish Absorption** (limit order absorption) and **Bearish Fakeouts**.
+
+### **Operational Logging**
+*   **System Audit Log:** Persistent real-time record of all price actions, volatility status, and system ticks.
+*   **Past Liquidations Ledger:** Session-based historical tracking of every detected liquidation event (REKT trades).
 
 ## 🛠 Tech Stack
-*   **Frontend:** Streamlit (v2.x+).
+*   **Frontend:** Streamlit with multi-page routing.
 *   **Backend:** Python 3.12+ & CCXT (Unified Exchange API).
-*   **Data Handling:** Pandas for real-time ledger management.
-*   **Visuals:** TradingView Advanced Charts Integration.
-*   **Environment:** Arch Linux - Xfce / GitHub Codespaces.
+*   **Analytics:** Plotly for high-fidelity Liquidity Depth and Volume Delta charts.
+*   **Indicators:** Integrated TradingView suite for EMA, SMA, RSI, and MACD analysis.
 
 ## 📦 Quick Start
-To deploy the Command Center in a fresh environment, execute the following:
-
 1.  **Clone the Repository:**
     ```
     git clone https://github.com/srimadhavsats/sats-trading-monitor.git
     cd sats-trading-monitor
     ```
-
 2.  **Initialize Virtual Environment:**
     ```
     python3 -m venv .venv && source .venv/bin/activate
     ```
-
 3.  **Install Production Dependencies:**
     ```
     pip install -r requirements.txt
     ```
-
 4.  **Launch the Suite:**
     ```
-    streamlit run monitor.py
+    streamlit run cex.py
     ```
 
 ## 📊 Repository Structure
 | File | Role | Description |
-|-----------|-----------|-------------|
-| **`monitor.py`** | **Engine** | Main entry point handling CCXT data streams, volatility logic, and state management. |
-| **`charts.py`** | **Visuals** | Specialized module for rendering high-performance financial widgets and indicators. |
-| `requirements.txt` | **Dependencies** | Automated list of production-ready Python libraries. |
-| `.gitignore` | **Cleanliness** | Configured to exclude virtual environments, system junk, and local data logs. |
+| :--- | :--- | :--- |
+| **`cex.py`** | **CEX Gateway** | Main entry point for Institutional Sentinel (Binance/Kraken). |
+| **`pages/dex.py`** | **DEX Gateway** | Specialized monitoring for Hyperliquid L1 order flow. |
+| **`ui_layout.py`** | **Shared UI** | Unified component rendering charts, magnets, and analytics. |
+| **`liquidations.py`** | **Data Engine** | Core logic for fetching order books, trades, and liquidation feeds. |
+| **`charts.py`** | **Visualizer** | Specialized module for high-performance financial widgets. |
 
 ## 🛠 Strategic Roadmap
-*   [ ] **FastAPI Integration:** Transition to a decoupled React/FastAPI stack for higher-frequency data throughput.
-*   [ ] **On-Chain Signal Layer:** Integrating custom Solidity events to monitor specific whale wallet movements.
-*   [ ] **Custom Price Alerts:** Triggering system notifications when volatility thresholds (1%+) are breached.
+*   [ ] **Solidity Signal Layer:** Integrating custom smart contracts to monitor whale wallet movements via on-chain events.
+*   [ ] **One-Click Execution:** Direct exchange API integration for rapid trade entry from Magnet alerts.
+*   [ ] **TUI Port:** A lightweight Terminal User Interface version for pure system-level terminal monitoring.
+
