@@ -3,10 +3,8 @@ import pandas as pd
 
 class LiquidationEngine:
     def __init__(self):
-        # CEX Exchanges
         self.binance = ccxt.binance({'options': {'defaultType': 'future'}})
         self.kraken = ccxt.kraken()
-        # DEX Exchange
         self.hyperliquid = ccxt.hyperliquid()
         
     def get_market_data(self, symbols, exchange_type="CEX"):
@@ -20,12 +18,25 @@ class LiquidationEngine:
                         spread = b_ticker['last'] - k_ticker['last']
                     except: spread = 0.0
                     data[symbol] = {'price': b_ticker['last'], 'spread': spread}
-                else: # DEX
+                else: 
                     hl_ticker = self.hyperliquid.fetch_ticker(symbol)
                     data[symbol] = {'price': hl_ticker['last'], 'spread': 0.0}
             except:
                 data[symbol] = {'price': 0.0, 'spread': 0.0}
         return data
+
+    def get_cvd_series(self, symbol, exchange_type="CEX"):
+        """Calculates the Cumulative Volume Delta from recent trades."""
+        try:
+            ex = self.binance if exchange_type == "CEX" else self.hyperliquid
+            trades = ex.fetch_trades(symbol, limit=200)
+            df = pd.DataFrame(trades)
+            
+            # Delta = Amount if aggressive buy, -Amount if aggressive sell
+            df['delta'] = df.apply(lambda x: x['amount'] if x['side'] == 'buy' else -x['amount'], axis=1)
+            return df['delta'].cumsum().tolist()
+        except:
+            return []
 
     def get_liquidity_depth(self, symbol, exchange_type="CEX"):
         try:
@@ -34,13 +45,12 @@ class LiquidationEngine:
             bids = pd.DataFrame(ob['bids'], columns=['price', 'vol'])
             asks = pd.DataFrame(ob['asks'], columns=['price', 'vol'])
             
-            cluster_size = 500 if "BTC" in symbol else 10 # Dynamic clustering
+            cluster_size = 500 if "BTC" in symbol else 10
             bids['cluster'] = (bids['price'] // cluster_size) * cluster_size
             asks['cluster'] = (asks['price'] // cluster_size) * cluster_size
             
-            b_grouped = bids.groupby('cluster')['vol'].sum().reset_index().tail(10)
-            a_grouped = asks.groupby('cluster')['vol'].sum().reset_index().head(10)
-            return b_grouped, a_grouped
+            return bids.groupby('cluster')['vol'].sum().reset_index().tail(10), \
+                   asks.groupby('cluster')['vol'].sum().reset_index().head(10)
         except: return pd.DataFrame(), pd.DataFrame()
 
     def get_liquidity_magnets(self, symbol, current_price, exchange_type="CEX"):
@@ -50,19 +60,18 @@ class LiquidationEngine:
             up, low = current_price * 1.015, current_price * 0.985
             asks = [a for a in ob['asks'] if a[0] <= up]
             bids = [b for b in ob['bids'] if b[0] >= low]
-            top_ask = max(asks, key=lambda x: x[1]) if asks else [0, 0]
-            top_bid = max(bids, key=lambda x: x[1]) if bids else [0, 0]
-            return {"short_risk": top_ask, "long_risk": top_bid}
+            return {
+                "short_risk": max(asks, key=lambda x: x[1]) if asks else [0, 0],
+                "long_risk": max(bids, key=lambda x: x[1]) if bids else [0, 0]
+            }
         except: return {"short_risk": [0,0], "long_risk": [0,0]}
 
     def get_rekt_feed(self, exchange_type="CEX"):
         try:
             if exchange_type == "CEX":
-                liquidations = self.binance.fapiPublicGetAllForceOrders()
-                df = pd.DataFrame(liquidations)
-            else: # Hyperliquid DEX
-                trades = self.hyperliquid.fetch_trades('BTC/USDT', limit=50)
-                df = pd.DataFrame(trades) # Note: HL requires specific info parsing for liqs
+                df = pd.DataFrame(self.binance.fapiPublicGetAllForceOrders())
+            else:
+                df = pd.DataFrame(self.hyperliquid.fetch_trades('BTC/USDT', limit=50))
             
             if not df.empty:
                 df['price'] = df['price'].astype(float)
@@ -70,18 +79,3 @@ class LiquidationEngine:
                 return df[['symbol', 'side', 'price', 'origQty', 'time']].head(5)
             return pd.DataFrame()
         except: return pd.DataFrame()
-
-        def get_cvd_data(self, symbol):
-    try:
-        # Fetch the last 100 trades
-        trades = self.binance.fetch_trades(symbol, limit=100)
-        df = pd.DataFrame(trades)
-        
-        # Binance 'side' tells us who was aggressive
-        # 'buy' = Market Buy, 'sell' = Market Sell
-        df['delta'] = df.apply(lambda x: x['amount'] if x['side'] == 'buy' else -x['amount'], axis=1)
-        
-        # Return the cumulative sum
-        return df['delta'].cumsum().iloc[-1]
-    except:
-        return 0.0
