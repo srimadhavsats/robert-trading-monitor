@@ -95,7 +95,7 @@ def render_sentinel_dashboard(page_title, engine_type, symbols, market_data, cur
     col_log1, col_log2 = st.columns(2)
     with col_log1:
         st.subheader("🤖 System Audit Log")
-        st.dataframe(st.session_state[audit_key], width=None, hide_index=True)
+        st.dataframe(st.session_state[audit_key], use_container_width=True, hide_index=True)
     with col_log2:
         st.subheader(f"📜 {engine_type} Historical Ledger")
-        st.dataframe(st.session_state[history_key], width=None, hide_index=True)
+        st.dataframe(st.session_state[history_key], use_container_width=True, hide_index=True)
