@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 from charts import render_tv_chart
 
 def detect_divergence(current_price, magnets, cvd_series):
+    """Detects Bullish Absorption or Bearish Fakeouts based on CVD slope."""
     if not cvd_series or len(cvd_series) < 5:
         return None
     threshold = 0.001 
@@ -49,7 +50,7 @@ def render_sentinel_dashboard(page_title, engine_type, symbols, market_data, cur
             dist = ((current_btc_price - magnets['long_risk'][0]) / current_btc_price) * 100
             st.warning(f"🧲 **{engine_type} Lower Magnet:** ${magnets['long_risk'][0]:,.0f} ({dist:.2f}% away)")
 
-    # --- 3. Price Metrics ---
+    # --- 3. Price Metrics (Fixed single-row rendering) ---
     m_cols = st.columns(3)
     for i, s in enumerate(symbols):
         p = market_data[s]['price']
@@ -91,11 +92,13 @@ def render_sentinel_dashboard(page_title, engine_type, symbols, market_data, cur
     else:
         st.info("🛡️ Market calm... monitoring live exchange liquidations.")
 
-    # --- 6. Session Logs ---
-    col_log1, col_log2 = st.columns(2)
-    with col_log1:
+    st.markdown("---")
+
+    # --- 6. Session Logs (Fixed single-row rendering) ---
+    log_col1, log_col2 = st.columns(2)
+    with log_col1:
         st.subheader("🤖 System Audit Log")
         st.dataframe(st.session_state[audit_key], use_container_width=True, hide_index=True)
-    with col_log2:
-        st.subheader(f"📜 {engine_type} Historical Ledger")
+    with log_col2:
+        st.subheader(f"📜 {engine_type} Past Liquidations Ledger")
         st.dataframe(st.session_state[history_key], use_container_width=True, hide_index=True)
