@@ -57,3 +57,11 @@ An institutional-grade cryptocurrency market sentinel and predictive visualizati
 *   [ ] **One-Click Execution:** Direct exchange API integration for rapid trade entry from Magnet alerts.
 *   [ ] **TUI Port:** A lightweight Terminal User Interface version for pure system-level terminal monitoring.
 
+## ⚖️ License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+### **Usage Terms:**
+*   **Permissions:** You are free to use, modify, and distribute this software for personal or commercial purposes.
+*   **Conditions:** You must include the original copyright notice and permission notice in any substantial portion of the software.
+*   **Liability:** The software is provided "as is", without warranty of any kind. As this is a financial monitoring tool, the author is not responsible for any trading losses incurred.
