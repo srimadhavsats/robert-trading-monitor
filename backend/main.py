@@ -1,14 +1,31 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-import random
+import ccxt.async_support as ccxt
 import time
+from contextlib import asynccontextmanager
 
-# Initialize the FastAPI application instance.
-app = FastAPI()
+# Global variable to hold the exchange instance
+exchange = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Manages the lifecycle of the FastAPI application.
+    Initializes the exchange connection on startup and closes it on shutdown.
+    """
+    global exchange
+    # Initialize the Binance exchange instance with rate limiting enabled.
+    exchange = ccxt.binance({
+        'enableRateLimit': True,
+    })
+    yield
+    # Closes the exchange connection to release resources.
+    await exchange.close()
+
+# Initialize the FastAPI application with the lifecycle manager.
+app = FastAPI(lifespan=lifespan)
 
 # Configure Cross-Origin Resource Sharing (CORS).
-# This allows the React frontend to communicate with this API 
-# across different ports or domains.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -19,32 +36,34 @@ app.add_middleware(
 @app.get("/")
 async def root():
     """
-    Root endpoint to verify that the API server is active.
+    Root endpoint to verify server connectivity.
     """
     return {"message": "Sats Trading Monitor API is online"}
 
 @app.get("/api/v1/sentinel/price")
 async def get_btc_price():
     """
-    Endpoint to retrieve simulated real-time market data.
-    Returns a JSON object containing asset details and volatility status.
+    Endpoint to retrieve live market data for BTC/USDT.
+    Uses CCXT to fetch the current ticker from Binance.
     """
-    # Generates a randomized price within a specific range for testing.
-    # This simulates price movement without an external API connection.
-    mock_price = 78000 + random.uniform(-50, 50)
-    
-    # Determines volatility status based on a random threshold.
-    status = "STABLE" if random.random() > 0.2 else "!! VOLATILE !!"
-    
-    return {
-        "symbol": "BTC/USDT",
-        "price": round(mock_price, 2),
-        "timestamp": time.time(),
-        "status": status
-    }
+    try:
+        # Fetches the current ticker data for the specified symbol.
+        ticker = await exchange.fetch_ticker('BTC/USDT')
+        
+        # Extracts relevant fields from the unified CCXT response.
+        return {
+            "symbol": ticker['symbol'],
+            "price": ticker['last'],
+            "timestamp": ticker['timestamp'] / 1000, # Converts ms to seconds
+            "status": "LIVE",
+            "high": ticker['high'],
+            "low": ticker['low'],
+            "volume": ticker['quoteVolume']
+        }
+    except Exception as e:
+        # Returns a 503 error if the exchange connection fails.
+        raise HTTPException(status_code=503, detail=f"Exchange Error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
-    # Launches the server on port 8000.
-    # The host '0.0.0.0' ensures visibility within cloud environments like Codespaces.
     uvicorn.run(app, host="0.0.0.0", port=8000)
