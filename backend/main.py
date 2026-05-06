@@ -1,69 +1,48 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 import ccxt.async_support as ccxt
-import time
-from contextlib import asynccontextmanager
+import uvicorn
 
-# Global variable to hold the exchange instance
-exchange = None
+app = FastAPI()
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Manages the lifecycle of the FastAPI application.
-    Initializes the exchange connection on startup and closes it on shutdown.
-    """
-    global exchange
-    # Initialize the Binance exchange instance with rate limiting enabled.
-    exchange = ccxt.binance({
-        'enableRateLimit': True,
-    })
-    yield
-    # Closes the exchange connection to release resources.
-    await exchange.close()
-
-# Initialize the FastAPI application with the lifecycle manager.
-app = FastAPI(lifespan=lifespan)
-
-# Configure Cross-Origin Resource Sharing (CORS).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# 1. Add a Health Check to verify the URL is reachable
 @app.get("/")
-async def root():
-    """
-    Root endpoint to verify server connectivity.
-    """
-    return {"message": "Sats Trading Monitor API is online"}
+async def health_check():
+    return {"status": "Backend is Online"}
 
-@app.get("/api/v1/sentinel/price")
-async def get_btc_price():
-    """
-    Endpoint to retrieve live market data for BTC/USDT.
-    Uses CCXT to fetch the current ticker from Binance.
-    """
+exchange = ccxt.binance()
+
+@app.websocket("/ws/price/{symbol}")
+async def websocket_endpoint(websocket: WebSocket, symbol: str):
+    await websocket.accept()
+    print(f"✅ Client connected for {symbol}")
     try:
-        # Fetches the current ticker data for the specified symbol.
-        ticker = await exchange.fetch_ticker('BTC/USDT')
-        
-        # Extracts relevant fields from the unified CCXT response.
-        return {
-            "symbol": ticker['symbol'],
-            "price": ticker['last'],
-            "timestamp": ticker['timestamp'] / 1000, # Converts ms to seconds
-            "status": "LIVE",
-            "high": ticker['high'],
-            "low": ticker['low'],
-            "volume": ticker['quoteVolume']
-        }
-    except Exception as e:
-        # Returns a 503 error if the exchange connection fails.
-        raise HTTPException(status_code=503, detail=f"Exchange Error: {str(e)}")
+        while True:
+            clean_symbol = symbol.replace("-", "/")
+            ticker = await exchange.fetch_ticker(clean_symbol)
+            
+            payload = {
+                "symbol": ticker['symbol'],
+                "price": ticker['last'],
+                "high": ticker['high'],
+                "low": ticker['low']
+            }
+            
+            await websocket.send_json(payload)
+            await asyncio.sleep(0.1) # Slowed down to 1s for initial stability
+            
+    except WebSocketDisconnect:
+        print(f"❌ Client disconnected")
 
+# 2. Force Uvicorn to listen on 0.0.0.0
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
