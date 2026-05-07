@@ -2,11 +2,12 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import ccxt.async_support as ccxt
+import httpx
 import time
 
 app = FastAPI()
 
-# Enable CORS for local development
+# Configure CORS for frontend access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,41 +15,67 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Initialize exchange client
 exchange = ccxt.binance()
+
+async def get_mempool_fees():
+    """Fetch recommended Bitcoin network fees from mempool.space API"""
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get("https://mempool.space/api/v1/fees/recommended", timeout=2.0)
+            return response.json()
+        except Exception:
+            # Return null values if request fails
+            return {"fastestFee": 0, "halfHourFee": 0, "hourFee": 0}
 
 @app.websocket("/ws/price/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await websocket.accept()
     try:
         while True:
+            # Format symbol for exchange compatibility
             clean_symbol = symbol.replace("-", "/")
             
-            # Fire THREE tasks at once now
+            # Define concurrent data fetching tasks
             ticker_task = exchange.fetch_ticker(clean_symbol)
             order_book_task = exchange.fetch_order_book(clean_symbol, limit=20)
-            trades_task = exchange.fetch_trades(clean_symbol, limit=10) # Get last 10 trades
+            trades_task = exchange.fetch_trades(clean_symbol, limit=10)
+            mempool_task = get_mempool_fees()
             
-            ticker, order_book, trades = await asyncio.gather(ticker_task, order_book_task, trades_task)
+            # Execute tasks concurrently
+            ticker, order_book, trades, fees = await asyncio.gather(
+                ticker_task, 
+                order_book_task, 
+                trades_task, 
+                mempool_task
+            )
             
-            # Filter for "Whale" trades (e.g., > 0.5 BTC or $40,000)
-            # You can adjust this '0.5' based on the asset
+            # Filter trades with volume >= 0.1
             whale_trades = [
                 {"amount": t['amount'], "side": t['side'], "price": t['price']} 
-                for t in trades if t['amount'] >= 0.1 # Lowered to 0.1 BTC to see more activity for testing
+                for t in trades if t['amount'] >= 0.1
             ]
 
+            # Extract top 5 sell orders by volume
+            top_asks = sorted(order_book['asks'], key=lambda x: x[1], reverse=True)[:5]
+
+            # Prepare data payload
             payload = {
                 "symbol": ticker['symbol'],
                 "price": ticker['last'],
-                "walls": [{"price": wall[0], "volume": wall[1]} for wall in sorted(order_book['asks'], key=lambda x: x[1], reverse=True)[:5]],
-                "trades": whale_trades, # New field for the Whale Tape
+                "walls": [{"price": wall[0], "volume": wall[1]} for wall in top_asks],
+                "trades": whale_trades,
+                "fees": fees,
                 "timestamp": ticker['timestamp']
             }
             
+            # Transmit payload to client
             await websocket.send_json(payload)
+            
+            # Wait for 1 second interval
             await asyncio.sleep(1)
             
     except WebSocketDisconnect:
-        print("Client disconnected")
+        print("WebSocket disconnected")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error encountered: {e}")
