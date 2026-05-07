@@ -28,7 +28,6 @@ const PriceCard = () => {
 
         const connect = () => {
             if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) return;
-
             socketRef.current = new WebSocket(wsUrl);
             socketRef.current.onopen = () => setConnected(true);
             socketRef.current.onmessage = (event) => {
@@ -49,11 +48,11 @@ const PriceCard = () => {
 
     if (!data || history.length < 2) return (
         <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/40 w-96 animate-pulse">
-            <p className="text-neutral-500 font-mono text-[10px] uppercase">Priming Whale Tape...</p>
+            <p className="text-neutral-500 font-mono text-[10px] uppercase tracking-widest text-center">Syncing Feed...</p>
         </div>
     );
 
-    // --- Technical Calculations ---
+    // --- Calculations ---
     const minPrice = Math.min(...history);
     const maxPrice = Math.max(...history);
     const priceRange = (maxPrice - minPrice) * 1.4 || 1;
@@ -71,8 +70,8 @@ const PriceCard = () => {
     return (
         <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/95 backdrop-blur-2xl w-96 shadow-2xl relative overflow-hidden">
             
-            {/* 🐋 THE WHALE TAPE (Right Aligned Overlay) */}
-            <div className="absolute right-2 top-24 bottom-6 w-24 flex flex-col gap-1.5 overflow-hidden pointer-events-none z-50">
+            {/* WHALE TAPE OVERLAY */}
+            <div className="absolute right-2 top-24 bottom-14 w-24 flex flex-col gap-1.5 overflow-hidden pointer-events-none z-50">
                 {data.trades && data.trades.slice(0, 5).map((trade, i) => (
                     <div key={i} className={`text-[7px] font-black py-1 px-2 rounded bg-black/80 backdrop-blur-md border-r-2 flex justify-between items-center animate-in fade-in slide-in-from-right-4 duration-500
                         ${trade.side === 'sell' ? 'border-orange-500 text-orange-400' : 'border-emerald-500 text-emerald-400'}`}>
@@ -99,9 +98,7 @@ const PriceCard = () => {
             </div>
 
             {/* VISUALIZATION BOX */}
-            <div className="relative h-32 w-full bg-black/60 rounded-xl border border-neutral-800/40 overflow-hidden">
-                
-                {/* LIQUIDITY HEATMAP */}
+            <div className="relative h-32 w-full bg-black/60 rounded-xl border border-neutral-800/40 overflow-hidden mb-5">
                 <div className="absolute inset-0 pointer-events-none">
                     {data.walls && data.walls.map((wall, index) => {
                         const yPos = getPlotY(wall.price);
@@ -117,8 +114,6 @@ const PriceCard = () => {
                         );
                     })}
                 </div>
-
-                {/* SVG LIQUID FLOW */}
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 384 128" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="liquidGradient" x1="0" y1="0" x2="0" y2="1">
@@ -129,17 +124,29 @@ const PriceCard = () => {
                     <path d={`${dAttr} L 384,128 L 0,128 Z`} fill="url(#liquidGradient)" className="transition-all duration-1000 ease-linear" />
                     <path d={dAttr} fill="none" stroke={velocityColor} strokeWidth="3" strokeLinecap="round" className="transition-all duration-1000 ease-linear" />
                 </svg>
-
                 <div className="absolute right-1 w-2.5 h-2.5 rounded-full transition-all duration-1000 ease-linear z-40"
                     style={{ top: `${getPlotY(data.price) - 5}px`, backgroundColor: velocityColor, boxShadow: `0 0 15px ${velocityColor}` }}
                 />
             </div>
 
-            {/* FOOTER */}
-            <div className="mt-5 flex justify-between items-end">
-                <div>
-                    <p className="text-neutral-600 text-[8px] font-black uppercase mb-1">Micro-Volatility</p>
-                    <p className="text-neutral-200 font-mono text-sm tracking-tighter">${(maxPrice - minPrice).toFixed(2)}</p>
+            {/* FOOTER: NETWORK FRICTION & STATUS */}
+            <div className="flex justify-between items-end border-t border-neutral-800 pt-4">
+                <div className="flex flex-col gap-1">
+                    <p className="text-neutral-600 text-[8px] font-black uppercase tracking-widest">Network Friction</p>
+                    <div className="flex gap-3">
+                        <div className="flex flex-col">
+                            <span className="text-[7px] text-neutral-500 uppercase font-bold tracking-tighter">Fastest</span>
+                            <span className={`text-[11px] font-mono font-black ${data.fees?.fastestFee > 100 ? 'text-orange-400' : 'text-emerald-400'}`}>
+                                {data.fees?.fastestFee || '--'} <span className="text-[7px] opacity-60">sat/vB</span>
+                            </span>
+                        </div>
+                        <div className="flex flex-col border-l border-neutral-800 pl-3">
+                            <span className="text-[7px] text-neutral-500 uppercase font-bold tracking-tighter">1 Hour</span>
+                            <span className="text-[11px] font-mono font-black text-neutral-300">
+                                {data.fees?.hourFee || '--'} <span className="text-[7px] opacity-60">sat/vB</span>
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 <div className="text-right">
                     <p className={`text-[10px] font-black uppercase italic tracking-tighter transition-colors duration-1000`} style={{ color: velocityColor }}>
