@@ -23,25 +23,27 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
         while True:
             clean_symbol = symbol.replace("-", "/")
             
-            # 1. Fetch Ticker and Deep Order Book
-            ticker = await exchange.fetch_ticker(clean_symbol)
-            order_book = await exchange.fetch_order_book(clean_symbol, limit=50)
+            # --- OPTIMIZATION: Parallel Fetching ---
+            # Instead of waiting for one then the other, we fire both at once.
+            ticker_task = exchange.fetch_ticker(clean_symbol)
+            order_book_task = exchange.fetch_order_book(clean_symbol, limit=20) # Reduced from 50 to 20 for speed
             
-            # 2. Identify the "Supply Zones" (Top 5 largest Ask volumes)
-            # We sort the 'asks' by volume (index 1) and take the top 5
+            # Gather both results simultaneously
+            ticker, order_book = await asyncio.gather(ticker_task, order_book_task)
+            
+            # Identify the "Supply Zones" (Top 5 largest Ask volumes)
             top_asks = sorted(order_book['asks'], key=lambda x: x[1], reverse=True)[:5]
 
             payload = {
                 "symbol": ticker['symbol'],
                 "price": ticker['last'],
-                # Map walls to a simple list of price and volume
                 "walls": [{"price": wall[0], "volume": wall[1]} for wall in top_asks],
                 "timestamp": ticker['timestamp']
             }
             
             await websocket.send_json(payload)
             
-            # 3. Match sleep to Frontend transition (1 second)
+            # Keep the 1s sleep to match the smooth frontend flow
             await asyncio.sleep(1)
             
     except WebSocketDisconnect:
