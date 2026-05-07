@@ -2,47 +2,49 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import ccxt.async_support as ccxt
-import uvicorn
+import time
 
 app = FastAPI()
 
+# Enable CORS for local development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# 1. Add a Health Check to verify the URL is reachable
-@app.get("/")
-async def health_check():
-    return {"status": "Backend is Online"}
 
 exchange = ccxt.binance()
 
 @app.websocket("/ws/price/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await websocket.accept()
-    print(f"✅ Client connected for {symbol}")
     try:
         while True:
             clean_symbol = symbol.replace("-", "/")
-            ticker = await exchange.fetch_ticker(clean_symbol)
             
+            # 1. Fetch Ticker and Deep Order Book
+            ticker = await exchange.fetch_ticker(clean_symbol)
+            order_book = await exchange.fetch_order_book(clean_symbol, limit=50)
+            
+            # 2. Identify the "Supply Zones" (Top 5 largest Ask volumes)
+            # We sort the 'asks' by volume (index 1) and take the top 5
+            top_asks = sorted(order_book['asks'], key=lambda x: x[1], reverse=True)[:5]
+
             payload = {
                 "symbol": ticker['symbol'],
                 "price": ticker['last'],
-                "high": ticker['high'],
-                "low": ticker['low']
+                # Map walls to a simple list of price and volume
+                "walls": [{"price": wall[0], "volume": wall[1]} for wall in top_asks],
+                "timestamp": ticker['timestamp']
             }
             
             await websocket.send_json(payload)
-            await asyncio.sleep(0.1) # Slowed down to 1s for initial stability
+            
+            # 3. Match sleep to Frontend transition (1 second)
+            await asyncio.sleep(1)
             
     except WebSocketDisconnect:
-        print(f"❌ Client disconnected")
-
-# 2. Force Uvicorn to listen on 0.0.0.0
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+        print("Client disconnected")
+    except Exception as e:
+        print(f"Error: {e}")
