@@ -23,27 +23,29 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
         while True:
             clean_symbol = symbol.replace("-", "/")
             
-            # --- OPTIMIZATION: Parallel Fetching ---
-            # Instead of waiting for one then the other, we fire both at once.
+            # Fire THREE tasks at once now
             ticker_task = exchange.fetch_ticker(clean_symbol)
-            order_book_task = exchange.fetch_order_book(clean_symbol, limit=20) # Reduced from 50 to 20 for speed
+            order_book_task = exchange.fetch_order_book(clean_symbol, limit=20)
+            trades_task = exchange.fetch_trades(clean_symbol, limit=10) # Get last 10 trades
             
-            # Gather both results simultaneously
-            ticker, order_book = await asyncio.gather(ticker_task, order_book_task)
+            ticker, order_book, trades = await asyncio.gather(ticker_task, order_book_task, trades_task)
             
-            # Identify the "Supply Zones" (Top 5 largest Ask volumes)
-            top_asks = sorted(order_book['asks'], key=lambda x: x[1], reverse=True)[:5]
+            # Filter for "Whale" trades (e.g., > 0.5 BTC or $40,000)
+            # You can adjust this '0.5' based on the asset
+            whale_trades = [
+                {"amount": t['amount'], "side": t['side'], "price": t['price']} 
+                for t in trades if t['amount'] >= 0.1 # Lowered to 0.1 BTC to see more activity for testing
+            ]
 
             payload = {
                 "symbol": ticker['symbol'],
                 "price": ticker['last'],
-                "walls": [{"price": wall[0], "volume": wall[1]} for wall in top_asks],
+                "walls": [{"price": wall[0], "volume": wall[1]} for wall in sorted(order_book['asks'], key=lambda x: x[1], reverse=True)[:5]],
+                "trades": whale_trades, # New field for the Whale Tape
                 "timestamp": ticker['timestamp']
             }
             
             await websocket.send_json(payload)
-            
-            # Keep the 1s sleep to match the smooth frontend flow
             await asyncio.sleep(1)
             
     except WebSocketDisconnect:

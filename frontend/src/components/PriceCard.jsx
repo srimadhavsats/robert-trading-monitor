@@ -27,50 +27,33 @@ const PriceCard = () => {
         const wsUrl = `${protocol}://${backendHost}/ws/price/BTC-USDT`;
 
         const connect = () => {
-            // Prevent multiple simultaneous connections during React StrictMode
             if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) return;
 
             socketRef.current = new WebSocket(wsUrl);
-
-            socketRef.current.onopen = () => {
-                setConnected(true);
-            };
-
+            socketRef.current.onopen = () => setConnected(true);
             socketRef.current.onmessage = (event) => {
                 const incomingData = JSON.parse(event.data);
                 if (incomingData.timestamp) setLatency(Date.now() - incomingData.timestamp);
                 setData(incomingData);
                 setHistory((prev) => [...prev, incomingData.price].slice(-maxTicks));
             };
-
             socketRef.current.onclose = () => {
                 setConnected(false);
-                // Auto-retry after 3 seconds if the connection drops
                 setTimeout(connect, 3000);
-            };
-
-            socketRef.current.onerror = (err) => {
-                console.error("Uplink Error:", err);
             };
         };
 
         connect();
-
-        return () => {
-            if (socketRef.current) {
-                socketRef.current.close();
-                socketRef.current = null;
-            }
-        };
+        return () => { if (socketRef.current) socketRef.current.close(); };
     }, []);
 
     if (!data || history.length < 2) return (
         <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/40 w-96 animate-pulse">
-            <p className="text-neutral-500 font-mono text-[10px] uppercase">Syncing Liquid Feed...</p>
+            <p className="text-neutral-500 font-mono text-[10px] uppercase">Priming Whale Tape...</p>
         </div>
     );
 
-    // --- Calculations ---
+    // --- Technical Calculations ---
     const minPrice = Math.min(...history);
     const maxPrice = Math.max(...history);
     const priceRange = (maxPrice - minPrice) * 1.4 || 1;
@@ -88,6 +71,17 @@ const PriceCard = () => {
     return (
         <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/95 backdrop-blur-2xl w-96 shadow-2xl relative overflow-hidden">
             
+            {/* 🐋 THE WHALE TAPE (Right Aligned Overlay) */}
+            <div className="absolute right-2 top-24 bottom-6 w-24 flex flex-col gap-1.5 overflow-hidden pointer-events-none z-50">
+                {data.trades && data.trades.slice(0, 5).map((trade, i) => (
+                    <div key={i} className={`text-[7px] font-black py-1 px-2 rounded bg-black/80 backdrop-blur-md border-r-2 flex justify-between items-center animate-in fade-in slide-in-from-right-4 duration-500
+                        ${trade.side === 'sell' ? 'border-orange-500 text-orange-400' : 'border-emerald-500 text-emerald-400'}`}>
+                        <span>{trade.side.toUpperCase()}</span>
+                        <span className="font-mono">{trade.amount.toFixed(2)}</span>
+                    </div>
+                ))}
+            </div>
+
             {/* HEADER */}
             <div className="relative z-30 mb-6">
                 <div className="flex justify-between items-center mb-1">
@@ -104,10 +98,10 @@ const PriceCard = () => {
                 </h2>
             </div>
 
-            {/* THE VISUALIZATION SUITE */}
+            {/* VISUALIZATION BOX */}
             <div className="relative h-32 w-full bg-black/60 rounded-xl border border-neutral-800/40 overflow-hidden">
                 
-                {/* 1. LIQUIDITY HEATMAP OVERLAY */}
+                {/* LIQUIDITY HEATMAP */}
                 <div className="absolute inset-0 pointer-events-none">
                     {data.walls && data.walls.map((wall, index) => {
                         const yPos = getPlotY(wall.price);
@@ -124,7 +118,7 @@ const PriceCard = () => {
                     })}
                 </div>
 
-                {/* 2. SVG LIQUID FLOW */}
+                {/* SVG LIQUID FLOW */}
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 384 128" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="liquidGradient" x1="0" y1="0" x2="0" y2="1">
@@ -136,7 +130,6 @@ const PriceCard = () => {
                     <path d={dAttr} fill="none" stroke={velocityColor} strokeWidth="3" strokeLinecap="round" className="transition-all duration-1000 ease-linear" />
                 </svg>
 
-                {/* 3. PULSING CURSOR */}
                 <div className="absolute right-1 w-2.5 h-2.5 rounded-full transition-all duration-1000 ease-linear z-40"
                     style={{ top: `${getPlotY(data.price) - 5}px`, backgroundColor: velocityColor, boxShadow: `0 0 15px ${velocityColor}` }}
                 />
