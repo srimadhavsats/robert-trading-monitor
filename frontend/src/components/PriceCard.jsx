@@ -13,6 +13,8 @@ const lineCommand = (point, i, a) => {
 };
 
 const PriceCard = () => {
+    // New state for asset switching
+    const [selectedSymbol, setSelectedSymbol] = useState('BTC-USDT');
     const [data, setData] = useState(null);
     const [connected, setConnected] = useState(false);
     const [history, setHistory] = useState([]);
@@ -24,7 +26,8 @@ const PriceCard = () => {
         const currentHost = window.location.host;
         const backendHost = currentHost.replace('5173', '8000');
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const wsUrl = `${protocol}://${backendHost}/ws/price/BTC-USDT`;
+        // Now dynamic based on selectedSymbol state
+        const wsUrl = `${protocol}://${backendHost}/ws/price/${selectedSymbol}`;
 
         const connect = () => {
             if (socketRef.current && socketRef.current.readyState !== WebSocket.CLOSED) return;
@@ -38,17 +41,29 @@ const PriceCard = () => {
             };
             socketRef.current.onclose = () => {
                 setConnected(false);
+                // Simple reconnection logic
                 setTimeout(connect, 3000);
             };
         };
 
         connect();
-        return () => { if (socketRef.current) socketRef.current.close(); };
-    }, []);
+
+        // Cleanup: Close socket and clear state when selectedSymbol changes
+        return () => { 
+            if (socketRef.current) {
+                socketRef.current.close();
+                socketRef.current = null;
+            }
+            setData(null);
+            setHistory([]);
+        };
+    }, [selectedSymbol]); // Effect re-runs on asset switch
 
     if (!data || history.length < 2) return (
-        <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/40 w-96 animate-pulse">
-            <p className="text-neutral-500 font-mono text-[10px] uppercase tracking-widest text-center">Syncing Feed...</p>
+        <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/40 w-96 animate-pulse flex flex-col justify-center items-center h-80">
+            <p className="text-neutral-500 font-mono text-[10px] uppercase tracking-widest text-center">
+                Establishing Uplink: {selectedSymbol}...
+            </p>
         </div>
     );
 
@@ -70,6 +85,22 @@ const PriceCard = () => {
     return (
         <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/95 backdrop-blur-2xl w-96 shadow-2xl relative overflow-hidden">
             
+            {/* ASSET SELECTOR TOGGLE */}
+            <div className="absolute left-6 top-6 flex gap-2 z-50">
+                {['BTC-USDT', 'ETH-USDT'].map((sym) => (
+                    <button
+                        key={sym}
+                        onClick={() => setSelectedSymbol(sym)}
+                        className={`text-[8px] font-black px-2 py-1 rounded border transition-all duration-300
+                        ${selectedSymbol === sym 
+                            ? 'bg-neutral-100 text-black border-neutral-100 shadow-[0_0_10px_rgba(255,255,255,0.2)]' 
+                            : 'bg-transparent text-neutral-500 border-neutral-800 hover:border-neutral-600'}`}
+                    >
+                        {sym.split('-')[0]}
+                    </button>
+                ))}
+            </div>
+
             {/* WHALE TAPE OVERLAY */}
             <div className="absolute right-2 top-24 bottom-14 w-24 flex flex-col gap-1.5 overflow-hidden pointer-events-none z-50">
                 {data.trades && data.trades.slice(0, 5).map((trade, i) => (
@@ -84,7 +115,9 @@ const PriceCard = () => {
             {/* HEADER */}
             <div className="relative z-30 mb-6">
                 <div className="flex justify-between items-center mb-1">
-                    <h3 className="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em]">{data.symbol} / PERP</h3>
+                    <h3 className="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em] pl-16">
+                        {data.symbol} / PERP
+                    </h3>
                     <div className="flex items-center gap-2">
                         <span className="text-neutral-600 font-mono text-[9px] font-bold">{latency}ms</span>
                         <div className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase ${connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>

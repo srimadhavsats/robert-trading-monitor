@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import ccxt.async_support as ccxt
 import httpx
-import time
 
 app = FastAPI()
 
@@ -18,6 +17,13 @@ app.add_middleware(
 # Initialize exchange client
 exchange = ccxt.binance()
 
+# Define asset-specific volume thresholds for whale trade filtering
+WHALE_THRESHOLDS = {
+    "BTC/USDT": 0.1,
+    "ETH/USDT": 2.0,
+    "SATS/USDT": 1000000.0
+}
+
 async def get_mempool_fees():
     """Fetch recommended Bitcoin network fees from mempool.space API"""
     async with httpx.AsyncClient() as client:
@@ -25,17 +31,18 @@ async def get_mempool_fees():
             response = await client.get("https://mempool.space/api/v1/fees/recommended", timeout=2.0)
             return response.json()
         except Exception:
-            # Return null values if request fails
             return {"fastestFee": 0, "halfHourFee": 0, "hourFee": 0}
 
 @app.websocket("/ws/price/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await websocket.accept()
+    
+    # Format symbol and identify corresponding whale threshold
+    clean_symbol = symbol.replace("-", "/")
+    threshold = WHALE_THRESHOLDS.get(clean_symbol, 0.1)
+    
     try:
         while True:
-            # Format symbol for exchange compatibility
-            clean_symbol = symbol.replace("-", "/")
-            
             # Define concurrent data fetching tasks
             ticker_task = exchange.fetch_ticker(clean_symbol)
             order_book_task = exchange.fetch_order_book(clean_symbol, limit=20)
@@ -50,10 +57,10 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                 mempool_task
             )
             
-            # Filter trades with volume >= 0.1
+            # Filter trades using asset-specific threshold
             whale_trades = [
                 {"amount": t['amount'], "side": t['side'], "price": t['price']} 
-                for t in trades if t['amount'] >= 0.1
+                for t in trades if t['amount'] >= threshold
             ]
 
             # Extract top 5 sell orders by volume
@@ -72,10 +79,10 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
             # Transmit payload to client
             await websocket.send_json(payload)
             
-            # Wait for 1 second interval
+            # Sync with frontend transition interval
             await asyncio.sleep(1)
             
     except WebSocketDisconnect:
-        print("WebSocket disconnected")
+        print(f"WebSocket disconnected for {clean_symbol}")
     except Exception as e:
-        print(f"Error encountered: {e}")
+        print(f"Error encountered on {clean_symbol}: {e}")
