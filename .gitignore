@@ -1,21 +1,31 @@
-# Python environment and cache
+# Python/Backend
 __pycache__/
 *.pyc
 .venv/
 env/
 venv/
 .env
+backend/.env
+backend/__pycache__/
 
-# Node.js dependencies and build artifacts
+# Node/Frontend
 node_modules/
+frontend/node_modules/
 dist/
 build/
+frontend/dist/
+frontend/build/
 .eslintcache
+.env.local
 
 # Logs and system files
 *.log
 .DS_Store
+Thumbs.db
 
-# IDE specific files
+# IDE and Editor specific
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
