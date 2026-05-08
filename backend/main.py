@@ -17,10 +17,10 @@ app.add_middleware(
 # Initialize exchange client
 exchange = ccxt.binance()
 
-# Define asset-specific volume thresholds for whale trade filtering
+# Updated thresholds: ETH increased to 5.0 to filter high-frequency noise
 WHALE_THRESHOLDS = {
     "BTC/USDT": 0.1,
-    "ETH/USDT": 2.0,
+    "ETH/USDT": 5.0,
     "SATS/USDT": 1000000.0
 }
 
@@ -37,19 +37,19 @@ async def get_mempool_fees():
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await websocket.accept()
     
-    # Format symbol and identify corresponding whale threshold
+    # Identify symbol and threshold at connection startup
     clean_symbol = symbol.replace("-", "/")
     threshold = WHALE_THRESHOLDS.get(clean_symbol, 0.1)
     
     try:
         while True:
-            # Define concurrent data fetching tasks
+            # Concurrent data fetching tasks
             ticker_task = exchange.fetch_ticker(clean_symbol)
             order_book_task = exchange.fetch_order_book(clean_symbol, limit=20)
             trades_task = exchange.fetch_trades(clean_symbol, limit=10)
             mempool_task = get_mempool_fees()
             
-            # Execute tasks concurrently
+            # Execute concurrent requests
             ticker, order_book, trades, fees = await asyncio.gather(
                 ticker_task, 
                 order_book_task, 
@@ -57,7 +57,7 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                 mempool_task
             )
             
-            # Filter trades using asset-specific threshold
+            # Filter trades using the updated 5.0 threshold for ETH
             whale_trades = [
                 {"amount": t['amount'], "side": t['side'], "price": t['price']} 
                 for t in trades if t['amount'] >= threshold
@@ -76,10 +76,10 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                 "timestamp": ticker['timestamp']
             }
             
-            # Transmit payload to client
+            # Send payload to frontend
             await websocket.send_json(payload)
             
-            # Sync with frontend transition interval
+            # 1 second sync interval
             await asyncio.sleep(1)
             
     except WebSocketDisconnect:
