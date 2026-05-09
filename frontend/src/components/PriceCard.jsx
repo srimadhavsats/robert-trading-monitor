@@ -115,7 +115,7 @@ const PriceCard = () => {
             {/* HEADER */}
             <div className="relative z-30 mb-6">
                 <div className="flex justify-between items-center mb-1">
-                    <h3 className="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em] pl-16">
+                    <h3 className="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em] pl-24">
                         {data.symbol} / PERP
                     </h3>
                     <div className="flex items-center gap-2">
