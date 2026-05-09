@@ -13,7 +13,6 @@ const lineCommand = (point, i, a) => {
 };
 
 const PriceCard = () => {
-    // New state for asset switching
     const [selectedSymbol, setSelectedSymbol] = useState('BTC-USDT');
     const [data, setData] = useState(null);
     const [connected, setConnected] = useState(false);
@@ -26,7 +25,6 @@ const PriceCard = () => {
         const currentHost = window.location.host;
         const backendHost = currentHost.replace('5173', '8000');
         const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        // Now dynamic based on selectedSymbol state
         const wsUrl = `${protocol}://${backendHost}/ws/price/${selectedSymbol}`;
 
         const connect = () => {
@@ -41,14 +39,12 @@ const PriceCard = () => {
             };
             socketRef.current.onclose = () => {
                 setConnected(false);
-                // Simple reconnection logic
                 setTimeout(connect, 3000);
             };
         };
 
         connect();
 
-        // Cleanup: Close socket and clear state when selectedSymbol changes
         return () => { 
             if (socketRef.current) {
                 socketRef.current.close();
@@ -57,7 +53,7 @@ const PriceCard = () => {
             setData(null);
             setHistory([]);
         };
-    }, [selectedSymbol]); // Effect re-runs on asset switch
+    }, [selectedSymbol]);
 
     if (!data || history.length < 2) return (
         <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/40 w-96 animate-pulse flex flex-col justify-center items-center h-80">
@@ -85,7 +81,7 @@ const PriceCard = () => {
     return (
         <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900/95 backdrop-blur-2xl w-96 shadow-2xl relative overflow-hidden">
             
-            {/* ASSET SELECTOR TOGGLE */}
+            {/* ASSET SELECTOR */}
             <div className="absolute left-6 top-6 flex gap-2 z-50">
                 {['BTC-USDT', 'ETH-USDT'].map((sym) => (
                     <button
@@ -93,7 +89,7 @@ const PriceCard = () => {
                         onClick={() => setSelectedSymbol(sym)}
                         className={`text-[8px] font-black px-2 py-1 rounded border transition-all duration-300
                         ${selectedSymbol === sym 
-                            ? 'bg-neutral-100 text-black border-neutral-100 shadow-[0_0_10px_rgba(255,255,255,0.2)]' 
+                            ? 'bg-neutral-100 text-black border-neutral-100' 
                             : 'bg-transparent text-neutral-500 border-neutral-800 hover:border-neutral-600'}`}
                     >
                         {sym.split('-')[0]}
@@ -101,7 +97,7 @@ const PriceCard = () => {
                 ))}
             </div>
 
-            {/* WHALE TAPE OVERLAY */}
+            {/* WHALE TAPE */}
             <div className="absolute right-2 top-24 bottom-14 w-24 flex flex-col gap-1.5 overflow-hidden pointer-events-none z-50">
                 {data.trades && data.trades.slice(0, 5).map((trade, i) => (
                     <div key={i} className={`text-[7px] font-black py-1 px-2 rounded bg-black/80 backdrop-blur-md border-r-2 flex justify-between items-center animate-in fade-in slide-in-from-right-4 duration-500
@@ -132,6 +128,20 @@ const PriceCard = () => {
 
             {/* VISUALIZATION BOX */}
             <div className="relative h-32 w-full bg-black/60 rounded-xl border border-neutral-800/40 overflow-hidden mb-5">
+                
+                {/* MARKET PRESSURE GAUGE */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-neutral-800 z-50 flex">
+                    <div 
+                        className="h-full bg-emerald-500 transition-all duration-1000 ease-linear shadow-[0_0_8px_rgba(16,185,129,0.4)]"
+                        style={{ width: `${data.imbalance}%` }}
+                    />
+                    <div 
+                        className="h-full bg-orange-500 transition-all duration-1000 ease-linear shadow-[0_0_8px_rgba(249,115,22,0.4)]"
+                        style={{ width: `${100 - data.imbalance}%` }}
+                    />
+                </div>
+
+                {/* LIQUIDITY HEATMAP */}
                 <div className="absolute inset-0 pointer-events-none">
                     {data.walls && data.walls.map((wall, index) => {
                         const yPos = getPlotY(wall.price);
@@ -147,6 +157,8 @@ const PriceCard = () => {
                         );
                     })}
                 </div>
+
+                {/* SVG LIQUID FLOW */}
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 384 128" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="liquidGradient" x1="0" y1="0" x2="0" y2="1">
@@ -157,12 +169,14 @@ const PriceCard = () => {
                     <path d={`${dAttr} L 384,128 L 0,128 Z`} fill="url(#liquidGradient)" className="transition-all duration-1000 ease-linear" />
                     <path d={dAttr} fill="none" stroke={velocityColor} strokeWidth="3" strokeLinecap="round" className="transition-all duration-1000 ease-linear" />
                 </svg>
+
+                {/* PRICE DOT */}
                 <div className="absolute right-1 w-2.5 h-2.5 rounded-full transition-all duration-1000 ease-linear z-40"
                     style={{ top: `${getPlotY(data.price) - 5}px`, backgroundColor: velocityColor, boxShadow: `0 0 15px ${velocityColor}` }}
                 />
             </div>
 
-            {/* FOOTER: NETWORK FRICTION & STATUS */}
+            {/* FOOTER */}
             <div className="flex justify-between items-end border-t border-neutral-800 pt-4">
                 <div className="flex flex-col gap-1">
                     <p className="text-neutral-600 text-[8px] font-black uppercase tracking-widest">Network Friction</p>

@@ -6,7 +6,6 @@ import httpx
 
 app = FastAPI()
 
-# Configure CORS for frontend access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,10 +13,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize exchange client
 exchange = ccxt.binance()
 
-# Updated thresholds: ETH increased to 5.0 to filter high-frequency noise
 WHALE_THRESHOLDS = {
     "BTC/USDT": 0.1,
     "ETH/USDT": 5.0,
@@ -25,7 +22,7 @@ WHALE_THRESHOLDS = {
 }
 
 async def get_mempool_fees():
-    """Fetch recommended Bitcoin network fees from mempool.space API"""
+    """Fetch Bitcoin network fees from mempool.space API"""
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get("https://mempool.space/api/v1/fees/recommended", timeout=2.0)
@@ -37,52 +34,46 @@ async def get_mempool_fees():
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await websocket.accept()
     
-    # Identify symbol and threshold at connection startup
     clean_symbol = symbol.replace("-", "/")
     threshold = WHALE_THRESHOLDS.get(clean_symbol, 0.1)
     
     try:
         while True:
-            # Concurrent data fetching tasks
             ticker_task = exchange.fetch_ticker(clean_symbol)
             order_book_task = exchange.fetch_order_book(clean_symbol, limit=20)
             trades_task = exchange.fetch_trades(clean_symbol, limit=10)
             mempool_task = get_mempool_fees()
             
-            # Execute concurrent requests
             ticker, order_book, trades, fees = await asyncio.gather(
-                ticker_task, 
-                order_book_task, 
-                trades_task, 
-                mempool_task
+                ticker_task, order_book_task, trades_task, mempool_task
             )
             
-            # Filter trades using the updated 5.0 threshold for ETH
+            # Calculate Order Book Imbalance (Bid vs Ask Volume)
+            total_bid_vol = sum(bid[1] for bid in order_book['bids'])
+            total_ask_vol = sum(ask[1] for ask in order_book['asks'])
+            imbalance = (total_bid_vol / (total_bid_vol + total_ask_vol)) * 100 if (total_bid_vol + total_ask_vol) > 0 else 50
+
             whale_trades = [
                 {"amount": t['amount'], "side": t['side'], "price": t['price']} 
                 for t in trades if t['amount'] >= threshold
             ]
 
-            # Extract top 5 sell orders by volume
             top_asks = sorted(order_book['asks'], key=lambda x: x[1], reverse=True)[:5]
 
-            # Prepare data payload
             payload = {
                 "symbol": ticker['symbol'],
                 "price": ticker['last'],
                 "walls": [{"price": wall[0], "volume": wall[1]} for wall in top_asks],
                 "trades": whale_trades,
                 "fees": fees,
+                "imbalance": round(imbalance, 2), # New imbalance percentage
                 "timestamp": ticker['timestamp']
             }
             
-            # Send payload to frontend
             await websocket.send_json(payload)
-            
-            # 1 second sync interval
             await asyncio.sleep(1)
             
     except WebSocketDisconnect:
-        print(f"WebSocket disconnected for {clean_symbol}")
+        print(f"WebSocket disconnected: {clean_symbol}")
     except Exception as e:
-        print(f"Error encountered on {clean_symbol}: {e}")
+        print(f"Error: {e}")
