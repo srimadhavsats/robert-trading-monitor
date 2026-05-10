@@ -114,7 +114,7 @@ const PriceCard = () => {
                         <span className={`font-mono text-[9px] font-bold transition-colors duration-500 ${
                             latency < 300 ? 'text-emerald-400' : // High performance
                             latency < 1000 ? 'text-emerald-600' : // Acceptable (Green)
-                            'text-orange-500'                    // Heavy Lag
+                            'text-red-500'                    // Heavy Lag
                     }`}>
                         {latency}ms
                     </span>
