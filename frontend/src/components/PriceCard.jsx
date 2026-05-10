@@ -111,7 +111,13 @@ const PriceCard = () => {
                 <div className="flex justify-between items-center mb-1">
                     <h3 className="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em] pl-24">{data.symbol} / PERP</h3>
                     <div className="flex items-center gap-2">
-                        <span className="text-neutral-600 font-mono text-[9px] font-bold">{latency}ms</span>
+                        <span className={`font-mono text-[9px] font-bold transition-colors duration-500 ${
+                            latency < 300 ? 'text-emerald-500' : 
+                            latency < 1000 ? 'text-neutral-600' : 
+                            'text-orange-500'
+                        }`}>
+                            {latency}ms
+                        </span>
                         <div className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase ${connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>{connected ? '● Live' : '○ Offline'}</div>
                     </div>
                 </div>
