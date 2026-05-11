@@ -123,9 +123,10 @@ const PriceCard = () => {
                         }`}>
                             {latency}ms
                         </span>
-                        {/* Bumped from 8px to 9px */}
-                        <div className={`px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase ${connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>{connected ? '● Live' : '○ Offline'}</div>
-                    </div>
+<div className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase flex items-center gap-1 ${connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+    <span className={connected ? 'animate-pulse' : ''}>●</span>
+    {connected ? 'Live' : 'Offline'}
+</div>                    </div>
                 </div>
                 <h2 className="text-5xl font-black tabular-nums tracking-tighter italic transition-colors duration-1000" style={{ color: velocityColor }}>${data.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
             </div>
