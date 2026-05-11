@@ -41,7 +41,6 @@ const PriceCard = () => {
 
                 if (incomingData.timestamp) setLatency(Date.now() - incomingData.timestamp);
                 
-                // Update Session Extremes
                 setSessionHigh(prev => (prev === null || currentPrice > prev) ? currentPrice : prev);
                 setSessionLow(prev => (prev === null || currentPrice < prev) ? currentPrice : prev);
 
@@ -92,21 +91,20 @@ const PriceCard = () => {
     return (
         <div className={`p-6 border rounded-2xl bg-neutral-900/95 backdrop-blur-2xl w-96 relative overflow-hidden transition-all duration-300 ${flashClasses}`}>
             
-            {/* ASSET TOGGLE */}
             <div className="absolute left-6 top-6 flex gap-2 z-50">
                 {['BTC-USDT', 'ETH-USDT'].map((sym) => (
-                    <button key={sym} onClick={() => setSelectedSymbol(sym)} className={`text-[8px] font-black px-2 py-1 rounded border transition-all ${selectedSymbol === sym ? 'bg-neutral-100 text-black border-neutral-100' : 'bg-transparent text-neutral-500 border-neutral-800 hover:border-neutral-600'}`}>{sym.split('-')[0]}</button>
+                    <button key={sym} onClick={() => setSelectedSymbol(sym)} className={`text-[9px] font-black px-2 py-1 rounded border transition-all ${selectedSymbol === sym ? 'bg-neutral-100 text-black border-neutral-100' : 'bg-transparent text-neutral-500 border-neutral-800 hover:border-neutral-600'}`}>{sym.split('-')[0]}</button>
                 ))}
             </div>
 
-            {/* WHALE TAPE */}
             <div className="absolute right-2 top-24 bottom-14 w-24 flex flex-col gap-1.5 overflow-hidden pointer-events-none z-50">
                 {data.trades?.slice(0, 5).map((trade, i) => (
-                    <div key={i} className={`text-[7px] font-black py-1 px-2 rounded bg-black/80 border-r-2 flex justify-between items-center animate-in fade-in slide-in-from-right-4 duration-500 ${trade.side === 'sell' ? 'border-orange-500 text-orange-400' : 'border-emerald-500 text-emerald-400'}`}>
+                    <div key={i} className={`text-[9px] font-black py-1 px-2 rounded bg-black/80 border-r-2 flex justify-between items-center animate-in fade-in slide-in-from-right-4 duration-500 ${trade.side === 'sell' ? 'border-orange-500 text-orange-400' : 'border-emerald-500 text-emerald-400'}`}>
                         <span>{trade.side.toUpperCase()}</span>
                         <span className="font-mono flex flex-col items-end">
                             {trade.amount.toFixed(2)}
-                            <span className="opacity-40 text-[5px] leading-none">
+                            {/* Bumped from 5px to 7px */}
+                            <span className="opacity-40 text-[7px] leading-none">
                                 ${Math.round(trade.amount * data.price).toLocaleString()}
                             </span>
                         </span>
@@ -114,52 +112,49 @@ const PriceCard = () => {
                 ))}
             </div>
 
-            {/* HEADER */}
             <div className="relative z-30 mb-6">
                 <div className="flex justify-between items-center mb-1">
-                    <h3 className="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em] pl-24">{data.symbol} / PERP</h3>
+                    {/* Bumped from 9px to 11px */}
+                    <h3 className="text-neutral-500 text-[11px] font-black uppercase tracking-[0.3em] pl-24">{data.symbol} / PERP</h3>
                     <div className="flex items-center gap-2">
-                        <span className={`font-mono text-[9px] font-bold transition-colors duration-500 ${
-                            latency < 300 ? 'text-emerald-400' : 
-                            latency < 1000 ? 'text-emerald-600' : 
-                            'text-red-500'
+                        {/* Bumped from 9px to 10px */}
+                        <span className={`font-mono text-[10px] font-bold transition-colors duration-500 ${
+                            latency < 300 ? 'text-emerald-400' : latency < 1000 ? 'text-emerald-600' : 'text-red-500'
                         }`}>
                             {latency}ms
                         </span>
-                        <div className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase ${connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>{connected ? '● Live' : '○ Offline'}</div>
+                        {/* Bumped from 8px to 9px */}
+                        <div className={`px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase ${connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>{connected ? '● Live' : '○ Offline'}</div>
                     </div>
                 </div>
                 <h2 className="text-5xl font-black tabular-nums tracking-tighter italic transition-colors duration-1000" style={{ color: velocityColor }}>${data.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
             </div>
 
-            {/* VISUALIZATION BOX */}
             <div className="relative h-32 w-full bg-black/60 rounded-xl border border-neutral-800/40 overflow-hidden mb-5">
-                
-                {/* MARKET PRESSURE GAUGE */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-neutral-800 z-50 flex">
-                    <div className="h-full bg-emerald-500 transition-all duration-1000 ease-linear shadow-[0_0_8px_rgba(16,185,129,0.4)]" style={{ width: `${data.imbalance}%` }} />
-                    <div className="h-full bg-orange-500 transition-all duration-1000 ease-linear shadow-[0_0_8px_rgba(249,115,22,0.4)]" style={{ width: `${100 - data.imbalance}%` }} />
+                    <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${data.imbalance}%` }} />
+                    <div className="h-full bg-orange-500 transition-all duration-1000" style={{ width: `${100 - data.imbalance}%` }} />
                     
-                    {/* Precision Labels */}
                     <div className="absolute top-1 left-0 w-full flex justify-between px-2 pointer-events-none">
-                        <span className="text-[5px] font-black text-emerald-500/60 uppercase">{data.imbalance.toFixed(0)}% Buy</span>
-                        <span className="text-[5px] font-black text-orange-500/60 uppercase">{(100 - data.imbalance).toFixed(0)}% Sell</span>
+                        {/* Bumped from 5px to 7px */}
+                        <span className="text-[7px] font-black text-emerald-500/60 uppercase">{data.imbalance.toFixed(0)}% Buy</span>
+                        <span className="text-[7px] font-black text-orange-500/60 uppercase">{(100 - data.imbalance).toFixed(0)}% Sell</span>
                     </div>
                 </div>
 
-                {/* Session Boundaries */}
                 {sessionHigh && (
                     <div className="absolute w-full border-t border-dashed border-emerald-500/20 z-10 transition-all duration-1000" style={{ top: `${getPlotY(sessionHigh)}px` }}>
-                        <span className="absolute right-1 -top-3 text-[6px] font-bold text-emerald-500/40 uppercase">High</span>
+                        {/* Bumped from 6px to 8px */}
+                        <span className="absolute right-1 -top-3 text-[8px] font-bold text-emerald-500/40 uppercase">High</span>
                     </div>
                 )}
                 {sessionLow && (
                     <div className="absolute w-full border-t border-dashed border-orange-500/20 z-10 transition-all duration-1000" style={{ top: `${getPlotY(sessionLow)}px` }}>
-                        <span className="absolute right-1 top-0 text-[6px] font-bold text-orange-400/40 uppercase">Low</span>
+                        {/* Bumped from 6px to 8px */}
+                        <span className="absolute right-1 top-0 text-[8px] font-bold text-orange-400/40 uppercase">Low</span>
                     </div>
                 )}
 
-                {/* Heatmap Walls */}
                 <div className="absolute inset-0 pointer-events-none">
                     {data.walls?.map((wall, index) => {
                         const yPos = getPlotY(wall.price);
@@ -168,7 +163,6 @@ const PriceCard = () => {
                     })}
                 </div>
 
-                {/* Liquid Flow Chart */}
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 384 128" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="liquidGradient" x1="0" y1="0" x2="0" y2="1">
@@ -180,17 +174,27 @@ const PriceCard = () => {
                     <path d={dAttr} fill="none" stroke={velocityColor} strokeWidth="3" className="transition-all duration-1000" />
                 </svg>
 
-                {/* Live Price Dot */}
                 <div className="absolute right-1 w-2.5 h-2.5 rounded-full transition-all duration-1000 z-40" style={{ top: `${getPlotY(data.price) - 5}px`, backgroundColor: velocityColor }} />
             </div>
 
-            {/* FOOTER */}
             <div className="flex justify-between items-end border-t border-neutral-800 pt-4">
                 <div className="flex flex-col gap-1">
-                    <p className="text-neutral-600 text-[8px] font-black uppercase tracking-widest">Network Friction</p>
+                    {/* Bumped from 8px to 9px */}
+                    <p className="text-neutral-600 text-[9px] font-black uppercase tracking-widest">Network Friction</p>
                     <div className="flex gap-3">
-                        <div className="flex flex-col"><span className="text-[7px] text-neutral-500 font-bold">Fastest</span><span className={`text-[11px] font-mono font-black ${data.fees?.fastestFee > 100 ? 'text-orange-400' : 'text-emerald-400'}`}>{data.fees?.fastestFee || '--'} <span className="text-[7px] opacity-60">sat/vB</span></span></div>
-                        <div className="flex flex-col border-l border-neutral-800 pl-3"><span className="text-[7px] text-neutral-500 font-bold">1 Hour</span><span className="text-[11px] font-mono font-black text-neutral-300">{data.fees?.hourFee || '--'} <span className="text-[7px] opacity-60">sat/vB</span></span></div>
+                        <div className="flex flex-col">
+                            {/* Bumped from 7px to 8px */}
+                            <span className="text-[8px] text-neutral-500 font-bold">Fastest</span>
+                            <span className={`text-[11px] font-mono font-black ${data.fees?.fastestFee > 100 ? 'text-orange-400' : 'text-emerald-400'}`}>
+                                {data.fees?.fastestFee || '--'} <span className="text-[7px] opacity-60">sat/vB</span>
+                            </span>
+                        </div>
+                        <div className="flex flex-col border-l border-neutral-800 pl-3">
+                            <span className="text-[8px] text-neutral-500 font-bold">1 Hour</span>
+                            <span className="text-[11px] font-mono font-black text-neutral-300">
+                                {data.fees?.hourFee || '--'} <span className="text-[7px] opacity-60">sat/vB</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
                 <div className="text-right">
