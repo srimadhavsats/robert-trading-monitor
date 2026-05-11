@@ -41,11 +41,11 @@ const PriceCard = () => {
 
                 if (incomingData.timestamp) setLatency(Date.now() - incomingData.timestamp);
                 
-                // Track Session Boundaries
+                // --- UPDATE SESSION RANGE ---
                 setSessionHigh(prev => (prev === null || currentPrice > prev) ? currentPrice : prev);
                 setSessionLow(prev => (prev === null || currentPrice < prev) ? currentPrice : prev);
 
-                // Visual Flash Trigger
+                // --- TRIGGER FLASH ALERT ---
                 if (incomingData.trades?.length > 0) {
                     setFlashSide(incomingData.trades[0].side);
                     setTimeout(() => setFlashSide(null), 1000);
@@ -88,15 +88,22 @@ const PriceCard = () => {
     const points = history.map((p, i) => [(i / (maxTicks - 1)) * 384, getPlotY(p)]);
     const dAttr = points.map((point, i, a) => lineCommand(point, i, a)).join(' ');
 
-    const flashClasses = flashSide === 'buy' ? 'ring-2 ring-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]' : flashSide === 'sell' ? 'ring-2 ring-orange-500/50 shadow-[0_0_20px_rgba(249,115,22,0.2)]' : 'border-neutral-800';
+    // --- ALERT STYLES ---
+    const flashClasses = flashSide === 'buy' 
+        ? 'ring-2 ring-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.2)]' 
+        : flashSide === 'sell' 
+        ? 'ring-2 ring-orange-500/50 shadow-[0_0_20px_rgba(249,115,22,0.2)]' 
+        : 'border-neutral-800';
 
     return (
         <div className={`p-6 border rounded-2xl bg-neutral-900/95 backdrop-blur-2xl w-96 relative overflow-hidden transition-all duration-300 ${flashClasses}`}>
             
-            {/* ASSET SELECTOR */}
+            {/* ASSET CONTROL */}
             <div className="absolute left-6 top-6 flex gap-2 z-50">
                 {['BTC-USDT', 'ETH-USDT'].map((sym) => (
-                    <button key={sym} onClick={() => setSelectedSymbol(sym)} className={`text-[8px] font-black px-2 py-1 rounded border transition-all ${selectedSymbol === sym ? 'bg-neutral-100 text-black border-neutral-100' : 'bg-transparent text-neutral-500 border-neutral-800 hover:border-neutral-600'}`}>{sym.split('-')[0]}</button>
+                    <button key={sym} onClick={() => setSelectedSymbol(sym)} className={`text-[8px] font-black px-2 py-1 rounded border transition-all ${selectedSymbol === sym ? 'bg-neutral-100 text-black border-neutral-100' : 'bg-transparent text-neutral-500 border-neutral-800 hover:border-neutral-600'}`}>
+                        {sym.split('-')[0]}
+                    </button>
                 ))}
             </div>
 
@@ -115,14 +122,16 @@ const PriceCard = () => {
                 ))}
             </div>
 
-            {/* HEADER */}
+            {/* HEADER SECTION */}
             <div className="relative z-30 mb-6">
                 <div className="flex justify-between items-center mb-1">
                     <h3 className="text-neutral-500 text-[9px] font-black uppercase tracking-[0.3em] pl-24">{data.symbol} / PERP</h3>
                     <div className="flex items-center gap-2">
-                        <span className={`font-mono text-[9px] font-bold transition-colors duration-500 ${latency < 300 ? 'text-emerald-400' : latency < 1000 ? 'text-emerald-600' : 'text-red-500'}`}>{latency}ms</span>
+                        <span className={`font-mono text-[9px] font-bold transition-colors duration-500 ${latency < 300 ? 'text-emerald-400' : latency < 1000 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {latency}ms
+                        </span>
                         
-                        {/* Status Heartbeat Pulse */}
+                        {/* LIVE HEARTBEAT INDICATOR */}
                         <div className={`px-1.5 py-0.5 rounded-[4px] text-[8px] font-black uppercase flex items-center gap-1 ${connected ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
                             <span className={connected ? 'animate-pulse' : ''}>●</span>
                             {connected ? 'Live' : 'Offline'}
@@ -130,18 +139,19 @@ const PriceCard = () => {
                     </div>
                 </div>
 
-                {/* Price Display with Floating Momentum Arrow */}
+                {/* PRICE & TREND INDICATOR */}
                 <div className="relative inline-block">
                     <h2 className="text-5xl font-black tabular-nums tracking-tighter italic transition-colors duration-1000" style={{ color: velocityColor }}>
                         ${data.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </h2>
-                    <span className="absolute -right-6 top-1 text-2xl font-bold opacity-80 transition-all duration-300" style={{ color: velocityColor }}>
+                    {/* BUMPED SIZE: text-4xl / POSITIONED: -right-8 */}
+                    <span className="absolute -right-8 top-1 text-4xl font-bold opacity-80 transition-all duration-300" style={{ color: velocityColor }}>
                         {isDropping ? '↓' : '↑'}
                     </span>
                 </div>
             </div>
 
-            {/* VISUALIZATION BOX */}
+            {/* DATA VISUALIZATION */}
             <div className="relative h-32 w-full bg-black/60 rounded-xl border border-neutral-800/40 overflow-hidden mb-5">
                 
                 {/* MARKET PRESSURE GAUGE */}
@@ -155,7 +165,7 @@ const PriceCard = () => {
                     </div>
                 </div>
 
-                {/* Session Boundaries */}
+                {/* RANGE MARKERS */}
                 {sessionHigh && (
                     <div className="absolute w-full border-t border-dashed border-emerald-500/20 z-10 transition-all duration-1000" style={{ top: `${getPlotY(sessionHigh)}px` }}>
                         <span className="absolute right-1 -top-3 text-[6px] font-bold text-emerald-500/40 uppercase">High</span>
@@ -167,7 +177,7 @@ const PriceCard = () => {
                     </div>
                 )}
 
-                {/* Liquidity Heatmap */}
+                {/* LIQUIDITY HEATMAP */}
                 <div className="absolute inset-0 pointer-events-none">
                     {data.walls?.map((wall, index) => {
                         const yPos = getPlotY(wall.price);
@@ -176,7 +186,7 @@ const PriceCard = () => {
                     })}
                 </div>
 
-                {/* Price Line & Fill */}
+                {/* FLOW CHART */}
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 384 128" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="liquidGradient" x1="0" y1="0" x2="0" y2="1">
@@ -188,10 +198,11 @@ const PriceCard = () => {
                     <path d={dAttr} fill="none" stroke={velocityColor} strokeWidth="3" className="transition-all duration-1000" />
                 </svg>
 
+                {/* PRICE DOT */}
                 <div className="absolute right-1 w-2.5 h-2.5 rounded-full transition-all duration-1000 z-40" style={{ top: `${getPlotY(data.price) - 5}px`, backgroundColor: velocityColor }} />
             </div>
 
-            {/* FOOTER */}
+            {/* CARD FOOTER */}
             <div className="flex justify-between items-end border-t border-neutral-800 pt-4">
                 <div className="flex flex-col gap-1">
                     <p className="text-neutral-600 text-[8px] font-black uppercase tracking-widest">Network Friction</p>
@@ -211,7 +222,9 @@ const PriceCard = () => {
                     </div>
                 </div>
                 <div className="text-right">
-                    <p className="text-[10px] font-black uppercase italic tracking-tighter" style={{ color: velocityColor }}>{isDropping ? 'High-Gravity Rejection' : 'Impulse Momentum'}</p>
+                    <p className="text-[10px] font-black uppercase italic tracking-tighter" style={{ color: velocityColor }}>
+                        {isDropping ? 'High-Gravity Rejection' : 'Impulse Momentum'}
+                    </p>
                 </div>
             </div>
         </div>
