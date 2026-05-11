@@ -95,11 +95,11 @@ const PriceCard = () => {
             {/* ASSET TOGGLE */}
             <div className="absolute left-6 top-6 flex gap-2 z-50">
                 {['BTC-USDT', 'ETH-USDT'].map((sym) => (
-                    <button key={sym} onClick={() => setSelectedSymbol(sym)} className={`text-[8px] font-black px-2 py-1 rounded border transition-all ${selectedSymbol === sym ? 'bg-neutral-100 text-black' : 'bg-transparent text-neutral-500 border-neutral-800 hover:border-neutral-600'}`}>{sym.split('-')[0]}</button>
+                    <button key={sym} onClick={() => setSelectedSymbol(sym)} className={`text-[8px] font-black px-2 py-1 rounded border transition-all ${selectedSymbol === sym ? 'bg-neutral-100 text-black border-neutral-100' : 'bg-transparent text-neutral-500 border-neutral-800 hover:border-neutral-600'}`}>{sym.split('-')[0]}</button>
                 ))}
             </div>
 
-            {/* WHALE TAPE: Volume & USD Value */}
+            {/* WHALE TAPE */}
             <div className="absolute right-2 top-24 bottom-14 w-24 flex flex-col gap-1.5 overflow-hidden pointer-events-none z-50">
                 {data.trades?.slice(0, 5).map((trade, i) => (
                     <div key={i} className={`text-[7px] font-black py-1 px-2 rounded bg-black/80 border-r-2 flex justify-between items-center animate-in fade-in slide-in-from-right-4 duration-500 ${trade.side === 'sell' ? 'border-orange-500 text-orange-400' : 'border-emerald-500 text-emerald-400'}`}>
@@ -134,11 +134,20 @@ const PriceCard = () => {
 
             {/* VISUALIZATION BOX */}
             <div className="relative h-32 w-full bg-black/60 rounded-xl border border-neutral-800/40 overflow-hidden mb-5">
+                
+                {/* MARKET PRESSURE GAUGE */}
                 <div className="absolute top-0 left-0 w-full h-1 bg-neutral-800 z-50 flex">
-                    <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${data.imbalance}%` }} />
-                    <div className="h-full bg-orange-500 transition-all duration-1000" style={{ width: `${100 - data.imbalance}%` }} />
+                    <div className="h-full bg-emerald-500 transition-all duration-1000 ease-linear shadow-[0_0_8px_rgba(16,185,129,0.4)]" style={{ width: `${data.imbalance}%` }} />
+                    <div className="h-full bg-orange-500 transition-all duration-1000 ease-linear shadow-[0_0_8px_rgba(249,115,22,0.4)]" style={{ width: `${100 - data.imbalance}%` }} />
+                    
+                    {/* Precision Labels */}
+                    <div className="absolute top-1 left-0 w-full flex justify-between px-2 pointer-events-none">
+                        <span className="text-[5px] font-black text-emerald-500/60 uppercase">{data.imbalance.toFixed(0)}% Buy</span>
+                        <span className="text-[5px] font-black text-orange-500/60 uppercase">{(100 - data.imbalance).toFixed(0)}% Sell</span>
+                    </div>
                 </div>
 
+                {/* Session Boundaries */}
                 {sessionHigh && (
                     <div className="absolute w-full border-t border-dashed border-emerald-500/20 z-10 transition-all duration-1000" style={{ top: `${getPlotY(sessionHigh)}px` }}>
                         <span className="absolute right-1 -top-3 text-[6px] font-bold text-emerald-500/40 uppercase">High</span>
@@ -150,6 +159,7 @@ const PriceCard = () => {
                     </div>
                 )}
 
+                {/* Heatmap Walls */}
                 <div className="absolute inset-0 pointer-events-none">
                     {data.walls?.map((wall, index) => {
                         const yPos = getPlotY(wall.price);
@@ -158,6 +168,7 @@ const PriceCard = () => {
                     })}
                 </div>
 
+                {/* Liquid Flow Chart */}
                 <svg className="absolute inset-0 w-full h-full" viewBox="0 0 384 128" preserveAspectRatio="none">
                     <defs>
                         <linearGradient id="liquidGradient" x1="0" y1="0" x2="0" y2="1">
@@ -169,9 +180,11 @@ const PriceCard = () => {
                     <path d={dAttr} fill="none" stroke={velocityColor} strokeWidth="3" className="transition-all duration-1000" />
                 </svg>
 
+                {/* Live Price Dot */}
                 <div className="absolute right-1 w-2.5 h-2.5 rounded-full transition-all duration-1000 z-40" style={{ top: `${getPlotY(data.price) - 5}px`, backgroundColor: velocityColor }} />
             </div>
 
+            {/* FOOTER */}
             <div className="flex justify-between items-end border-t border-neutral-800 pt-4">
                 <div className="flex flex-col gap-1">
                     <p className="text-neutral-600 text-[8px] font-black uppercase tracking-widest">Network Friction</p>
