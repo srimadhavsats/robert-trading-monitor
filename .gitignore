@@ -1,12 +1,15 @@
 # Python/Backend
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 .venv/
 env/
 venv/
 .env
 backend/.env
 backend/__pycache__/
+.pytest_cache/
 
 # Node/Frontend
 node_modules/
@@ -18,14 +21,15 @@ frontend/build/
 .eslintcache
 .env.local
 
+# IDE and Editor specific
+.vscode/
+.idea/
+.zed/
+*.swp
+*.swo
+*~
+
 # Logs and system files
 *.log
 .DS_Store
 Thumbs.db
-
-# IDE and Editor specific
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
