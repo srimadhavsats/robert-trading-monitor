@@ -1,15 +1,15 @@
-# Core Backend Framework
+# --- SATS Sentinel v4.1 Dependencies ---
+
+# Core Web Framework
 fastapi
 uvicorn[standard]
 
-# Crypto and Exchange Integration
-ccxt
-
-# Async HTTP Client for Mempool API
+# Networking & API
 httpx
-
-# WebSocket support
 websockets
+
+# Data & Exchange (Legacy/Future Use)
+ccxt
 
 # Utilities
 python-multipart
