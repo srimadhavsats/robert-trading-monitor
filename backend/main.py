@@ -1,79 +1,99 @@
+import asyncio
+
+import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-import asyncio
-import ccxt.async_support as ccxt
-import httpx
+
+# 1. RESTORE ORIGINAL PROJECT LOGIC
+try:
+    from ui_layout import WHALE_THRESHOLDS
+except ImportError:
+    # Default fallback for SATS Sentinel v4.1
+    WHALE_THRESHOLDS = {"BTC/USDT": 0.1, "ETH/USDT": 1.0, "1000SATS/USDT": 500000.0}
 
 app = FastAPI()
 
+# Enable CORS for the React frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-exchange = ccxt.binance()
+BYBIT_API = "https://api.bybit.com/v5/market/tickers"
 
-WHALE_THRESHOLDS = {
-    "BTC/USDT": 0.1,
-    "ETH/USDT": 5.0,
-    "SATS/USDT": 1000000.0
-}
 
-async def get_mempool_fees():
-    """Fetch Bitcoin network fees from mempool.space API"""
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get("https://mempool.space/api/v1/fees/recommended", timeout=2.0)
-            return response.json()
-        except Exception:
-            return {"fastestFee": 0, "halfHourFee": 0, "hourFee": 0}
+@app.get("/")
+async def health_check():
+    """Verify the backend is live in the browser."""
+    return {
+        "status": "Sentinel v4.1 Active",
+        "message": "Oracle is ready for data requests",
+    }
+
+
+@app.on_event("startup")
+async def startup_event():
+    print("⚡ SATS Sentinel v4.1: Streaming Oracle Online", flush=True)
+
 
 @app.websocket("/ws/price/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await websocket.accept()
-    
-    clean_symbol = symbol.replace("-", "/")
-    threshold = WHALE_THRESHOLDS.get(clean_symbol, 0.1)
-    
+
+    # Format symbol: BTC-USDT -> BTCUSDT for Bybit API
+    api_symbol = symbol.replace("-", "")
+    if "SATS" in api_symbol and "1000" not in api_symbol:
+        api_symbol = f"1000{api_symbol}"
+
+    # Headers to mimic a browser and bypass regional ISP blocks
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    }
+
     try:
-        while True:
-            ticker_task = exchange.fetch_ticker(clean_symbol)
-            order_book_task = exchange.fetch_order_book(clean_symbol, limit=20)
-            trades_task = exchange.fetch_trades(clean_symbol, limit=10)
-            mempool_task = get_mempool_fees()
-            
-            ticker, order_book, trades, fees = await asyncio.gather(
-                ticker_task, order_book_task, trades_task, mempool_task
-            )
-            
-            # Calculate Order Book Imbalance (Bid vs Ask Volume)
-            total_bid_vol = sum(bid[1] for bid in order_book['bids'])
-            total_ask_vol = sum(ask[1] for ask in order_book['asks'])
-            imbalance = (total_bid_vol / (total_bid_vol + total_ask_vol)) * 100 if (total_bid_vol + total_ask_vol) > 0 else 50
+        print(f"🔗 Polling Data for {api_symbol}...", flush=True)
 
-            whale_trades = [
-                {"amount": t['amount'], "side": t['side'], "price": t['price']} 
-                for t in trades if t['amount'] >= threshold
-            ]
+        async with httpx.AsyncClient(
+            timeout=10.0, headers=headers, trust_env=True
+        ) as client:
+            while True:
+                response = await client.get(
+                    BYBIT_API, params={"category": "spot", "symbol": api_symbol}
+                )
 
-            top_asks = sorted(order_book['asks'], key=lambda x: x[1], reverse=True)[:5]
+                if response.status_code == 200:
+                    data = response.json()
+                    result = data.get("result", {}).get("list", [{}])[0]
 
-            payload = {
-                "symbol": ticker['symbol'],
-                "price": ticker['last'],
-                "walls": [{"price": wall[0], "volume": wall[1]} for wall in top_asks],
-                "trades": whale_trades,
-                "fees": fees,
-                "imbalance": round(imbalance, 2), # New imbalance percentage
-                "timestamp": ticker['timestamp']
-            }
-            
-            await websocket.send_json(payload)
-            await asyncio.sleep(1)
-            
+                    if result:
+                        price = float(result.get("lastPrice", 0))
+                        clean_key = symbol.replace("-", "/")
+                        threshold = WHALE_THRESHOLDS.get(clean_key, 0)
+
+                        payload = {
+                            "symbol": clean_key,
+                            "price": price,
+                            "high": float(result.get("highPrice24h", 0)),
+                            "low": float(result.get("lowPrice24h", 0)),
+                            "volume": float(result.get("turnover24h", 0)),
+                            "change": float(result.get("price24hPcnt", 0)) * 100,
+                            "is_whale": price > threshold,
+                            "whale_alert": price > threshold,
+                        }
+
+                        await websocket.send_json(payload)
+                        print(f"✅ Sent {clean_key}: ${price}", flush=True)
+
+                else:
+                    print(f"❌ API Error: {response.status_code}", flush=True)
+
+                await asyncio.sleep(1.0)  # 1-second heartbeat
+
     except WebSocketDisconnect:
-        print(f"WebSocket disconnected: {clean_symbol}")
+        print(f"ℹ️ Frontend disconnected from {symbol}.", flush=True)
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"❌ Backend Error: {e}", flush=True)
