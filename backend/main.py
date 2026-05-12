@@ -25,6 +25,7 @@ app.add_middleware(
 BYBIT_API = "https://api.bybit.com/v5/market/tickers"
 
 
+# 1. Health check to verify server connectivity
 @app.get("/")
 async def health_check():
     """Verify the backend is live in the browser."""
@@ -34,11 +35,13 @@ async def health_check():
     }
 
 
+# 2. Initialization log for the SATS Oracle
 @app.on_event("startup")
 async def startup_event():
     print("⚡ SATS Sentinel v4.1: Streaming Oracle Online", flush=True)
 
 
+# 3. Main WebSocket stream for real-time market data
 @app.websocket("/ws/price/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await websocket.accept()
