@@ -75,6 +75,6 @@ npm run dev
 
 ## ⚖️ License
 
-This project is licensed under the **MIT License** - see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](https://github.com/srimadhavsats/sats-trading-monitor/blob/main/LICENSE) file for details.
 
 > **Disclaimer:** This is a financial monitoring tool designed for technical analysis and market observation. Trading involves significant risk, and the author is not responsible for any financial losses incurred through the use of this software. Always verify market signals through multiple independent data points.
