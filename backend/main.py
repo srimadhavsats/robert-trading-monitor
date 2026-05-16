@@ -4,16 +4,22 @@ import httpx
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-# 1. RESTORE ORIGINAL PROJECT LOGIC
+# --------------------------------------------------------------------
+# Configuration & Threshold Mappings
+# --------------------------------------------------------------------
 try:
     from ui_layout import WHALE_THRESHOLDS
 except ImportError:
-    # Default fallback for SATS Sentinel v4.1
+    # Fallback thresholds optimized for asset-specific profiles
     WHALE_THRESHOLDS = {"BTC/USDT": 0.1, "ETH/USDT": 1.0, "1000SATS/USDT": 500000.0}
 
-app = FastAPI()
+app = FastAPI(
+    title="SATS Sentinel Engine",
+    description="High-frequency market data streaming oracle via WebSockets",
+    version="4.1",
+)
 
-# Enable CORS for the React frontend
+# Cross-Origin Resource Sharing (CORS) security configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,43 +28,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global institutional mirror endpoint for resilient data delivery
 BYBIT_API = "https://api.bybit.com/v5/market/tickers"
 
 
-# 1. Health check to verify server connectivity
+# --------------------------------------------------------------------
+# Application Lifecycle Routes
+# --------------------------------------------------------------------
+
+
 @app.get("/")
 async def health_check():
-    """Verify the backend is live in the browser."""
+    """
+    Service Health Check.
+    Verifies container/host connectivity and gateway operational readiness.
+    """
     return {
         "status": "Sentinel v4.1 Active",
-        "message": "Oracle is ready for data requests",
+        "message": "Oracle engine is operational and ready for stream requests",
     }
 
 
-# 2. Initialization log for the SATS Oracle
 @app.on_event("startup")
 async def startup_event():
+    """
+    Initialization Hook.
+    Triggers diagnostic logging upon application server spin-up.
+    """
     print("⚡ SATS Sentinel v4.1: Streaming Oracle Online", flush=True)
 
 
-# 3. Main WebSocket stream for real-time market data
+# --------------------------------------------------------------------
+# WebSocket Streaming Pipeline
+# --------------------------------------------------------------------
+
+
 @app.websocket("/ws/price/{symbol}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
+    """
+    Asynchronous WebSocket stream handler. Establishes a persistent full-duplex
+    connection to calculate tracking metrics and broadcast live payload states.
+    """
     await websocket.accept()
 
-    # Format symbol: BTC-USDT -> BTCUSDT for Bybit API
+    # Normalize incoming pairs (e.g., BTC-USDT -> BTCUSDT) to comply with API schemas
     api_symbol = symbol.replace("-", "")
     if "SATS" in api_symbol and "1000" not in api_symbol:
         api_symbol = f"1000{api_symbol}"
 
-    # Headers to mimic a browser and bypass regional ISP blocks
+    # Anti-fingerprinting browser-mimicking signatures to prevent regional edge timeouts
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "application/json",
     }
 
     try:
-        print(f"🔗 Polling Data for {api_symbol}...", flush=True)
+        print(f"🔗 Polling Data Feed for: {api_symbol}...", flush=True)
 
         async with httpx.AsyncClient(
             timeout=10.0, headers=headers, trust_env=True
@@ -77,6 +102,7 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                         clean_key = symbol.replace("-", "/")
                         threshold = WHALE_THRESHOLDS.get(clean_key, 0)
 
+                        # Structured analytical payload generation
                         payload = {
                             "symbol": clean_key,
                             "price": price,
@@ -86,17 +112,26 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                             "change": float(result.get("price24hPcnt", 0)) * 100,
                             "is_whale": price > threshold,
                             "whale_alert": price > threshold,
+                            "whale_threshold": threshold,
                         }
 
                         await websocket.send_json(payload)
-                        print(f"✅ Sent {clean_key}: ${price}", flush=True)
+                        print(f"✅ Broadcast {clean_key}: ${price}", flush=True)
 
                 else:
-                    print(f"❌ API Error: {response.status_code}", flush=True)
+                    print(
+                        f"❌ Oracle Edge API Connection Warning: Status {response.status_code}",
+                        flush=True,
+                    )
 
-                await asyncio.sleep(1.0)  # 1-second heartbeat
+                await asyncio.sleep(
+                    1.0
+                )  # Standard 1-second cluster evaluation heartbeat
 
     except WebSocketDisconnect:
-        print(f"ℹ️ Frontend disconnected from {symbol}.", flush=True)
+        print(
+            f"ℹ️ Network Handshake Terminated: Client disconnected from channel [{symbol}].",
+            flush=True,
+        )
     except Exception as e:
-        print(f"❌ Backend Error: {e}", flush=True)
+        print(f"❌ Internal Pipeline Telemetry Exception: {e}", flush=True)
