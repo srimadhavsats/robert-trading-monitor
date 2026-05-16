@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+// Import the centralized configuration mapping
+import { CONFIG } from "../config";
 
 const lineCommand = (point, i, a) => {
   const [x, y] = point;
@@ -7,7 +9,7 @@ const lineCommand = (point, i, a) => {
   const cpx1 = px + (x - px) * 0.5;
   const cpy1 = py;
   const cpx2 = x - (x - px) * 0.5;
-  const cpy2 = y;
+  const cpx2 = y;
   return `C ${cpx1},${cpy1} ${cpx2},${cpy2} ${x},${y}`;
 };
 
@@ -19,18 +21,19 @@ const PriceCard = () => {
   const [sessionHigh, setSessionHigh] = useState(null);
   const [sessionLow, setSessionLow] = useState(null);
 
-  const maxTicks = 40;
+  // Consume boundary limits from central config
+  const maxTicks = CONFIG.MAX_CHART_TICKS;
 
   useEffect(() => {
     let socket = null;
     let reconnectTimer = null;
-    let isMounted = true; // Guard to prevent state updates on unmounted component
+    let isMounted = true;
 
     const connect = () => {
       if (!isMounted) return;
 
-      // Using 127.0.0.1:8000 to match your successful backend logs
-      const wsUrl = `ws://127.0.0.1:8000/ws/price/${selectedSymbol}`;
+      // Dynamically resolve WebSocket connection string from config
+      const wsUrl = `${CONFIG.BACKEND_WS_URL}/ws/price/${selectedSymbol}`;
 
       socket = new WebSocket(wsUrl);
 
@@ -66,8 +69,8 @@ const PriceCard = () => {
       socket.onclose = () => {
         if (isMounted) {
           setConnected(false);
-          // 3-second delay prevents the rapid-fire disconnect loop
-          reconnectTimer = setTimeout(connect, 3000);
+          // Heartbeat retry fallback interval managed via centralized constants
+          reconnectTimer = setTimeout(connect, CONFIG.HEARTBEAT_RECONNECT_MS);
         }
       };
 
@@ -78,11 +81,10 @@ const PriceCard = () => {
 
     connect();
 
-    // CLEANUP: Kills the socket and timer when you switch symbols or close the tab
     return () => {
       isMounted = false;
       if (socket) {
-        socket.onclose = null; // Prevent the onclose timer from triggering
+        socket.onclose = null;
         socket.close();
       }
       if (reconnectTimer) clearTimeout(reconnectTimer);
