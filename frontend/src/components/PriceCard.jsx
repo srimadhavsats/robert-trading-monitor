@@ -9,7 +9,7 @@ const lineCommand = (point, i, a) => {
   const cpx1 = px + (x - px) * 0.5;
   const cpy1 = py;
   const cpx2 = x - (x - px) * 0.5;
-  const cpx2 = y;
+  const cpy2 = y; // Fixed the typo here from cpx2 to cpy2
   return `C ${cpx1},${cpy1} ${cpx2},${cpy2} ${x},${y}`;
 };
 
