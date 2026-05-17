@@ -1,6 +1,14 @@
 import asyncio
 
 import httpx
+
+# Import centralized configuration parameters
+from config import (
+    BYBIT_API_URL,
+    CONNECTION_TIMEOUT_SECONDS,
+    DEFAULT_WHALE_THRESHOLDS,
+    STREAM_HEARTBEAT_DELAY,
+)
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,8 +18,8 @@ from fastapi.middleware.cors import CORSMiddleware
 try:
     from ui_layout import WHALE_THRESHOLDS
 except ImportError:
-    # Fallback thresholds optimized for asset-specific profiles
-    WHALE_THRESHOLDS = {"BTC/USDT": 0.1, "ETH/USDT": 1.0, "1000SATS/USDT": 500000.0}
+    # Fallback thresholds optimized via central configuration module
+    WHALE_THRESHOLDS = DEFAULT_WHALE_THRESHOLDS
 
 app = FastAPI(
     title="SATS Sentinel Engine",
@@ -27,9 +35,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Global institutional mirror endpoint for resilient data delivery
-BYBIT_API = "https://api.bybit.com/v5/market/tickers"
 
 
 # --------------------------------------------------------------------
@@ -86,11 +91,11 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
         print(f"🔗 Polling Data Feed for: {api_symbol}...", flush=True)
 
         async with httpx.AsyncClient(
-            timeout=10.0, headers=headers, trust_env=True
+            timeout=CONNECTION_TIMEOUT_SECONDS, headers=headers, trust_env=True
         ) as client:
             while True:
                 response = await client.get(
-                    BYBIT_API, params={"category": "spot", "symbol": api_symbol}
+                    BYBIT_API_URL, params={"category": "spot", "symbol": api_symbol}
                 )
 
                 if response.status_code == 200:
@@ -125,8 +130,8 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                     )
 
                 await asyncio.sleep(
-                    1.0
-                )  # Standard 1-second cluster evaluation heartbeat
+                    STREAM_HEARTBEAT_DELAY
+                )  # Managed via centralized constants
 
     except WebSocketDisconnect:
         print(
