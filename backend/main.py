@@ -12,6 +12,9 @@ from config import (
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+# Import the centralized telemetry engine logger
+from logger import SentinelLogger
+
 # --------------------------------------------------------------------
 # Configuration & Threshold Mappings
 # --------------------------------------------------------------------
@@ -60,7 +63,7 @@ async def startup_event():
     Initialization Hook.
     Triggers diagnostic logging upon application server spin-up.
     """
-    print("⚡ SATS Sentinel v4.1: Streaming Oracle Online", flush=True)
+    SentinelLogger.startup("Streaming Oracle Online")
 
 
 # --------------------------------------------------------------------
@@ -88,7 +91,7 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
     }
 
     try:
-        print(f"🔗 Polling Data Feed for: {api_symbol}...", flush=True)
+        SentinelLogger.info(f"Polling Data Feed for: {api_symbol}...")
 
         async with httpx.AsyncClient(
             timeout=CONNECTION_TIMEOUT_SECONDS, headers=headers, trust_env=True
@@ -121,12 +124,11 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                         }
 
                         await websocket.send_json(payload)
-                        print(f"✅ Broadcast {clean_key}: ${price}", flush=True)
+                        SentinelLogger.broadcast(clean_key, price)
 
                 else:
-                    print(
-                        f"❌ Oracle Edge API Connection Warning: Status {response.status_code}",
-                        flush=True,
+                    SentinelLogger.error(
+                        f"Oracle Edge API Connection Warning: Status {response.status_code}"
                     )
 
                 await asyncio.sleep(
@@ -134,9 +136,8 @@ async def websocket_endpoint(websocket: WebSocket, symbol: str):
                 )  # Managed via centralized constants
 
     except WebSocketDisconnect:
-        print(
-            f"ℹ️ Network Handshake Terminated: Client disconnected from channel [{symbol}].",
-            flush=True,
+        SentinelLogger.info(
+            f"Network Handshake Terminated: Client disconnected from channel [{symbol}]."
         )
     except Exception as e:
-        print(f"❌ Internal Pipeline Telemetry Exception: {e}", flush=True)
+        SentinelLogger.error(f"Internal Pipeline Telemetry Exception: {e}")
