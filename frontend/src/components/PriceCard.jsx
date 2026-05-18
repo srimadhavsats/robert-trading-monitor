@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 // Import the centralized configuration mapping
 import { CONFIG } from "../config";
+// Import the centralized telemetry formatting utilities
+import { formatMarketPrice } from "../utils/formatters";
 
 const lineCommand = (point, i, a) => {
   const [x, y] = point;
@@ -9,7 +11,7 @@ const lineCommand = (point, i, a) => {
   const cpx1 = px + (x - px) * 0.5;
   const cpy1 = py;
   const cpx2 = x - (x - px) * 0.5;
-  const cpy2 = y; // Fixed the typo here from cpx2 to cpy2
+  const cpy2 = y;
   return `C ${cpx1},${cpy1} ${cpx2},${cpy2} ${x},${y}`;
 };
 
@@ -152,10 +154,7 @@ const PriceCard = () => {
             className="text-5xl font-black tabular-nums tracking-tighter italic"
             style={{ color: velocityColor }}
           >
-            $
-            {(data.price || 0).toLocaleString(undefined, {
-              minimumFractionDigits: 2,
-            })}
+            ${formatMarketPrice(data.price)}
           </h2>
         </div>
       </div>
