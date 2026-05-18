@@ -15,6 +15,9 @@ from fastapi.middleware.cors import CORSMiddleware
 # Import the centralized telemetry engine logger
 from logger import SentinelLogger
 
+# Import formalized data validation schemas
+from schemas import HealthCheckResponse
+
 # --------------------------------------------------------------------
 # Configuration & Threshold Mappings
 # --------------------------------------------------------------------
@@ -45,11 +48,12 @@ app.add_middleware(
 # --------------------------------------------------------------------
 
 
-@app.get("/")
+@app.get("/", response_model=HealthCheckResponse)
 async def health_check():
     """
     Service Health Check.
     Verifies container/host connectivity and gateway operational readiness.
+    Enforces runtime validation through HealthCheckResponse schema.
     """
     return {
         "status": "Sentinel v4.1 Active",
