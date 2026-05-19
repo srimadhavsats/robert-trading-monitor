@@ -19,3 +19,20 @@ class HealthCheckResponse(BaseModel):
                 "message": "Oracle engine is operational and ready for stream requests",
             }
         }
+
+
+class ErrorResponse(BaseModel):
+    """Standardized error contract for consistent API exception handling."""
+
+    error: str = Field(..., description="The error classification code or status title")
+    details: str = Field(
+        ..., description="Human-readable exception details and debugging context"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "error": "Upstream Gateway Error",
+                "details": "The remote exchange mirror connection timed out after 10.0 seconds.",
+            }
+        }
