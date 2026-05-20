@@ -26,3 +26,20 @@ export const formatPriceChange = (change) => {
   const formatted = change.toFixed(2);
   return change > 0 ? `+${formatted}%` : `${formatted}%`;
 };
+
+/**
+ * Formats a date object or timestamp into a highly readable, execution-style time string.
+ * Perfect for high-frequency order books, transaction telemetry, or live alert systems.
+ * @param {Date|string|number} dateInput - Raw time variable.
+ * @returns {string} Formatted localized time (e.g., "23:37:32").
+ */
+export const formatTimestamp = (dateInput) => {
+  const date = dateInput ? new Date(dateInput) : new Date();
+  if (isNaN(date.getTime())) return "--:--:--";
+  return date.toLocaleTimeString(undefined, {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+};
